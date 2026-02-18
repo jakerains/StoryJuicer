@@ -1,0 +1,507 @@
+// !$*UTF8*$!
+{
+	archiveVersion = 1;
+	classes = {
+	};
+	objectVersion = 77;
+	objects = {
+
+/* Begin PBXBuildFile section */
+		13515323939A3C2160369485 /* ContentSafetyPolicy.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1713919CD5C0740D7D4CD440 /* ContentSafetyPolicy.swift */; };
+		13C5EC0754FED110E7FB2DCD /* MacCreationView.swift in Sources */ = {isa = PBXBuildFile; fileRef = A04654598FF9E9B2E26FD112 /* MacCreationView.swift */; };
+		17FA8401DFE98506B4A874C2 /* StylePickerItem.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2FB6660A103278FE9AD216B1 /* StylePickerItem.swift */; };
+		22BC8C342CBC633940835053 /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = E1B4A08BFCA4ABD345BAEA42 /* Assets.xcassets */; };
+		29FA6CF0E1601193715097E1 /* BookReaderViewModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = 746E6C765E6AD016E52B07CA /* BookReaderViewModel.swift */; };
+		32329CA495B745DD19AFFE3E /* ErrorBanner.swift in Sources */ = {isa = PBXBuildFile; fileRef = 74822B6ECC14197B6E7B20A7 /* ErrorBanner.swift */; };
+		39C5852D4ABE3D668D33EFC8 /* StoryJuicerGlassTokens.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0465CDDABA6910466B3F2646 /* StoryJuicerGlassTokens.swift */; };
+		56F10AC7D26C810FA11005F6 /* StoredStorybook.swift in Sources */ = {isa = PBXBuildFile; fileRef = FA764DAEB406284B91EC5362 /* StoredStorybook.swift */; };
+		5861B5231254094B0B216128 /* CreationViewModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6FCB01CC4AB458270D5F6677 /* CreationViewModel.swift */; };
+		590D55E7019893856C7D38FD /* StoryGenerator.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5078BE3DB7C1431918C6A34D /* StoryGenerator.swift */; };
+		5A698564F5443972F52A2362 /* StoryJuicerTypography.swift in Sources */ = {isa = PBXBuildFile; fileRef = D90202EB392C52E300E853EB /* StoryJuicerTypography.swift */; };
+		66ACC963262796D865425286 /* StoryJuicerApp.swift in Sources */ = {isa = PBXBuildFile; fileRef = 43351E20815F852C215B5626 /* StoryJuicerApp.swift */; };
+		67C30F38DBA26F2163D6E237 /* UnavailableOverlay.swift in Sources */ = {isa = PBXBuildFile; fileRef = 68BC2827D8BDC3B2326CAC54 /* UnavailableOverlay.swift */; };
+		6CAD55AB88592FF100D16D73 /* GenerationOptions+Defaults.swift in Sources */ = {isa = PBXBuildFile; fileRef = 680CD8C2A1ED317A976108CE /* GenerationOptions+Defaults.swift */; };
+		6EF47E20FFD7F1A7FA087A8D /* PlatformImage.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6E6580FCF6472EC0B3E52EB7 /* PlatformImage.swift */; };
+		714DAF53E2326C8164196BD2 /* StoryJuicerMotion.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0FF014955DEF228F50D5F151 /* StoryJuicerMotion.swift */; };
+		76FC035C06A62F65BCB4809A /* ShortcutStoryRequest.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9E2DA4A704ACD20890A75E01 /* ShortcutStoryRequest.swift */; };
+		7846D866FB000F011BE370E1 /* PageOverviewGrid.swift in Sources */ = {isa = PBXBuildFile; fileRef = AB5A8997F389AB790F6A8352 /* PageOverviewGrid.swift */; };
+		79302D656F6A876A4595496F /* MacExportView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 27E0E3AF372CED2742AF89E5 /* MacExportView.swift */; };
+		7B56D7D0E4A711C20DF7A8D0 /* IllustrationStyle.swift in Sources */ = {isa = PBXBuildFile; fileRef = 71861F642FF205D2F34CD9E2 /* IllustrationStyle.swift */; };
+		8B9E78E9DA5BEE8465595AD3 /* Color+Theme.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3FFCE7F21A4B3E62A012235B /* Color+Theme.swift */; };
+		8C0322332C7DC2CEA9EEEC3E /* RemoteStoryGenerator.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3282FF0A1043D6610BC79A5D /* RemoteStoryGenerator.swift */; };
+		9AE40FEE29EADEEA0F895C74 /* PageThumbnail.swift in Sources */ = {isa = PBXBuildFile; fileRef = 321E816D7962582FA44C8895 /* PageThumbnail.swift */; };
+		9F1268ACE356B6D6C6998CE0 /* PDFRenderer+macOS.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0FCA3D85FCC974183116C224 /* PDFRenderer+macOS.swift */; };
+		A439FD9613E08288070D1FAA /* View+StoryJuicerGlass.swift in Sources */ = {isa = PBXBuildFile; fileRef = 388CAFFCC4C96B0F61079E46 /* View+StoryJuicerGlass.swift */; };
+		BD19B308AF258F04D020C071 /* MacBookReaderView.swift in Sources */ = {isa = PBXBuildFile; fileRef = A830679AC95875528A1ADF9C /* MacBookReaderView.swift */; };
+		C39428C86CE360CD5CF7BFF0 /* MacGenerationProgressView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 127CED7EEDEEF7A928F41BA6 /* MacGenerationProgressView.swift */; };
+		C8C617A75FE6031FC5946A5D /* SqueezeButton.swift in Sources */ = {isa = PBXBuildFile; fileRef = 337E19A50437FAAE88D08E4C /* SqueezeButton.swift */; };
+		D19B94F6807692FD0FBBC55A /* StoryJuicerShortcuts.swift in Sources */ = {isa = PBXBuildFile; fileRef = E7F8698C2D9906288D23B8D3 /* StoryJuicerShortcuts.swift */; };
+		DF0C411FEC52347B436BC410 /* IllustrationPromptRewrite.swift in Sources */ = {isa = PBXBuildFile; fileRef = 197CF6F3F30AF70ADFB178EF /* IllustrationPromptRewrite.swift */; };
+		E9A84753B6E9BCCC384549F5 /* FormatPreviewCard.swift in Sources */ = {isa = PBXBuildFile; fileRef = 70A26FB75E213C902755B4D9 /* FormatPreviewCard.swift */; };
+		F5219188CEEC0175B7D150A8 /* BookFormat.swift in Sources */ = {isa = PBXBuildFile; fileRef = ECB6AF16AC58CC48BF5910CC /* BookFormat.swift */; };
+		F89BA71C370BB1518A980B21 /* PDFRendering.swift in Sources */ = {isa = PBXBuildFile; fileRef = B3841D780DBD2697D3E015A1 /* PDFRendering.swift */; };
+		FEAB8C4E2A2A9BAB1DF4A1CC /* IllustrationGenerator.swift in Sources */ = {isa = PBXBuildFile; fileRef = 806335BF66287A13E84B126E /* IllustrationGenerator.swift */; };
+		FF0EA70920C9A5F0DAF67BAB /* StoryBook.swift in Sources */ = {isa = PBXBuildFile; fileRef = 65D9987C71EF8F7C8559112A /* StoryBook.swift */; };
+/* End PBXBuildFile section */
+
+/* Begin PBXFileReference section */
+		0465CDDABA6910466B3F2646 /* StoryJuicerGlassTokens.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = StoryJuicerGlassTokens.swift; sourceTree = "<group>"; };
+		0FCA3D85FCC974183116C224 /* PDFRenderer+macOS.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "PDFRenderer+macOS.swift"; sourceTree = "<group>"; };
+		0FF014955DEF228F50D5F151 /* StoryJuicerMotion.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = StoryJuicerMotion.swift; sourceTree = "<group>"; };
+		127CED7EEDEEF7A928F41BA6 /* MacGenerationProgressView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MacGenerationProgressView.swift; sourceTree = "<group>"; };
+		1713919CD5C0740D7D4CD440 /* ContentSafetyPolicy.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ContentSafetyPolicy.swift; sourceTree = "<group>"; };
+		197CF6F3F30AF70ADFB178EF /* IllustrationPromptRewrite.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = IllustrationPromptRewrite.swift; sourceTree = "<group>"; };
+		27E0E3AF372CED2742AF89E5 /* MacExportView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MacExportView.swift; sourceTree = "<group>"; };
+		28F8ABB8B50BD5FAEF54E149 /* StoryJuicer.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = StoryJuicer.app; sourceTree = BUILT_PRODUCTS_DIR; };
+		2FB6660A103278FE9AD216B1 /* StylePickerItem.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = StylePickerItem.swift; sourceTree = "<group>"; };
+		321E816D7962582FA44C8895 /* PageThumbnail.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PageThumbnail.swift; sourceTree = "<group>"; };
+		3282FF0A1043D6610BC79A5D /* RemoteStoryGenerator.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RemoteStoryGenerator.swift; sourceTree = "<group>"; };
+		337E19A50437FAAE88D08E4C /* SqueezeButton.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SqueezeButton.swift; sourceTree = "<group>"; };
+		388CAFFCC4C96B0F61079E46 /* View+StoryJuicerGlass.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "View+StoryJuicerGlass.swift"; sourceTree = "<group>"; };
+		3FFCE7F21A4B3E62A012235B /* Color+Theme.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "Color+Theme.swift"; sourceTree = "<group>"; };
+		43351E20815F852C215B5626 /* StoryJuicerApp.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = StoryJuicerApp.swift; sourceTree = "<group>"; };
+		5078BE3DB7C1431918C6A34D /* StoryGenerator.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = StoryGenerator.swift; sourceTree = "<group>"; };
+		65D9987C71EF8F7C8559112A /* StoryBook.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = StoryBook.swift; sourceTree = "<group>"; };
+		680CD8C2A1ED317A976108CE /* GenerationOptions+Defaults.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "GenerationOptions+Defaults.swift"; sourceTree = "<group>"; };
+		68BC2827D8BDC3B2326CAC54 /* UnavailableOverlay.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = UnavailableOverlay.swift; sourceTree = "<group>"; };
+		6E6580FCF6472EC0B3E52EB7 /* PlatformImage.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PlatformImage.swift; sourceTree = "<group>"; };
+		6FCB01CC4AB458270D5F6677 /* CreationViewModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CreationViewModel.swift; sourceTree = "<group>"; };
+		70A26FB75E213C902755B4D9 /* FormatPreviewCard.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FormatPreviewCard.swift; sourceTree = "<group>"; };
+		71861F642FF205D2F34CD9E2 /* IllustrationStyle.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = IllustrationStyle.swift; sourceTree = "<group>"; };
+		746E6C765E6AD016E52B07CA /* BookReaderViewModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BookReaderViewModel.swift; sourceTree = "<group>"; };
+		74822B6ECC14197B6E7B20A7 /* ErrorBanner.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ErrorBanner.swift; sourceTree = "<group>"; };
+		806335BF66287A13E84B126E /* IllustrationGenerator.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = IllustrationGenerator.swift; sourceTree = "<group>"; };
+		9E2DA4A704ACD20890A75E01 /* ShortcutStoryRequest.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ShortcutStoryRequest.swift; sourceTree = "<group>"; };
+		A04654598FF9E9B2E26FD112 /* MacCreationView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MacCreationView.swift; sourceTree = "<group>"; };
+		A830679AC95875528A1ADF9C /* MacBookReaderView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MacBookReaderView.swift; sourceTree = "<group>"; };
+		AB5A8997F389AB790F6A8352 /* PageOverviewGrid.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PageOverviewGrid.swift; sourceTree = "<group>"; };
+		B3841D780DBD2697D3E015A1 /* PDFRendering.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PDFRendering.swift; sourceTree = "<group>"; };
+		D90202EB392C52E300E853EB /* StoryJuicerTypography.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = StoryJuicerTypography.swift; sourceTree = "<group>"; };
+		E1B4A08BFCA4ABD345BAEA42 /* Assets.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; path = Assets.xcassets; sourceTree = "<group>"; };
+		E7F8698C2D9906288D23B8D3 /* StoryJuicerShortcuts.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = StoryJuicerShortcuts.swift; sourceTree = "<group>"; };
+		ECB6AF16AC58CC48BF5910CC /* BookFormat.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BookFormat.swift; sourceTree = "<group>"; };
+		FA764DAEB406284B91EC5362 /* StoredStorybook.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = StoredStorybook.swift; sourceTree = "<group>"; };
+/* End PBXFileReference section */
+
+/* Begin PBXGroup section */
+		144D8534CB33AD3AD5955971 /* Views */ = {
+			isa = PBXGroup;
+			children = (
+				FE1C6046D1551CFB2AF7B86C /* Components */,
+			);
+			path = Views;
+			sourceTree = "<group>";
+		};
+		2B3660594241F1383468A1DE /* Resources */ = {
+			isa = PBXGroup;
+			children = (
+				E1B4A08BFCA4ABD345BAEA42 /* Assets.xcassets */,
+			);
+			path = Resources;
+			sourceTree = "<group>";
+		};
+		732D5C7F7B8D31739E7162EA /* macOS */ = {
+			isa = PBXGroup;
+			children = (
+				0FCA3D85FCC974183116C224 /* PDFRenderer+macOS.swift */,
+				9AACD003946557562F2A6642 /* Views */,
+			);
+			path = macOS;
+			sourceTree = "<group>";
+		};
+		7E6B068E1ABC535D09E21DFA /* ViewModels */ = {
+			isa = PBXGroup;
+			children = (
+				746E6C765E6AD016E52B07CA /* BookReaderViewModel.swift */,
+				6FCB01CC4AB458270D5F6677 /* CreationViewModel.swift */,
+			);
+			path = ViewModels;
+			sourceTree = "<group>";
+		};
+		7ED8B473BAC5B4AEC4D68DEB = {
+			isa = PBXGroup;
+			children = (
+				43351E20815F852C215B5626 /* StoryJuicerApp.swift */,
+				732D5C7F7B8D31739E7162EA /* macOS */,
+				2B3660594241F1383468A1DE /* Resources */,
+				F6859C9F4C920A8774B2E64C /* Shared */,
+				B3BAD220C6465E78742AAE5A /* Products */,
+			);
+			sourceTree = "<group>";
+		};
+		9AACD003946557562F2A6642 /* Views */ = {
+			isa = PBXGroup;
+			children = (
+				A830679AC95875528A1ADF9C /* MacBookReaderView.swift */,
+				A04654598FF9E9B2E26FD112 /* MacCreationView.swift */,
+				27E0E3AF372CED2742AF89E5 /* MacExportView.swift */,
+				127CED7EEDEEF7A928F41BA6 /* MacGenerationProgressView.swift */,
+			);
+			path = Views;
+			sourceTree = "<group>";
+		};
+		B234297BCF89F9C5B01A487D /* Models */ = {
+			isa = PBXGroup;
+			children = (
+				ECB6AF16AC58CC48BF5910CC /* BookFormat.swift */,
+				197CF6F3F30AF70ADFB178EF /* IllustrationPromptRewrite.swift */,
+				71861F642FF205D2F34CD9E2 /* IllustrationStyle.swift */,
+				FA764DAEB406284B91EC5362 /* StoredStorybook.swift */,
+				65D9987C71EF8F7C8559112A /* StoryBook.swift */,
+			);
+			path = Models;
+			sourceTree = "<group>";
+		};
+		B3BAD220C6465E78742AAE5A /* Products */ = {
+			isa = PBXGroup;
+			children = (
+				28F8ABB8B50BD5FAEF54E149 /* StoryJuicer.app */,
+			);
+			name = Products;
+			sourceTree = "<group>";
+		};
+		BBCDE68407A8159D0FB5A287 /* Generation */ = {
+			isa = PBXGroup;
+			children = (
+				806335BF66287A13E84B126E /* IllustrationGenerator.swift */,
+				B3841D780DBD2697D3E015A1 /* PDFRendering.swift */,
+				3282FF0A1043D6610BC79A5D /* RemoteStoryGenerator.swift */,
+				5078BE3DB7C1431918C6A34D /* StoryGenerator.swift */,
+			);
+			path = Generation;
+			sourceTree = "<group>";
+		};
+		F3DEFC21141CACFC4E6F5AC5 /* Utilities */ = {
+			isa = PBXGroup;
+			children = (
+				1713919CD5C0740D7D4CD440 /* ContentSafetyPolicy.swift */,
+				680CD8C2A1ED317A976108CE /* GenerationOptions+Defaults.swift */,
+				6E6580FCF6472EC0B3E52EB7 /* PlatformImage.swift */,
+				9E2DA4A704ACD20890A75E01 /* ShortcutStoryRequest.swift */,
+				E7F8698C2D9906288D23B8D3 /* StoryJuicerShortcuts.swift */,
+			);
+			path = Utilities;
+			sourceTree = "<group>";
+		};
+		F6859C9F4C920A8774B2E64C /* Shared */ = {
+			isa = PBXGroup;
+			children = (
+				BBCDE68407A8159D0FB5A287 /* Generation */,
+				B234297BCF89F9C5B01A487D /* Models */,
+				F3DEFC21141CACFC4E6F5AC5 /* Utilities */,
+				7E6B068E1ABC535D09E21DFA /* ViewModels */,
+				144D8534CB33AD3AD5955971 /* Views */,
+			);
+			path = Shared;
+			sourceTree = "<group>";
+		};
+		FE1C6046D1551CFB2AF7B86C /* Components */ = {
+			isa = PBXGroup;
+			children = (
+				3FFCE7F21A4B3E62A012235B /* Color+Theme.swift */,
+				74822B6ECC14197B6E7B20A7 /* ErrorBanner.swift */,
+				70A26FB75E213C902755B4D9 /* FormatPreviewCard.swift */,
+				AB5A8997F389AB790F6A8352 /* PageOverviewGrid.swift */,
+				321E816D7962582FA44C8895 /* PageThumbnail.swift */,
+				337E19A50437FAAE88D08E4C /* SqueezeButton.swift */,
+				0465CDDABA6910466B3F2646 /* StoryJuicerGlassTokens.swift */,
+				0FF014955DEF228F50D5F151 /* StoryJuicerMotion.swift */,
+				D90202EB392C52E300E853EB /* StoryJuicerTypography.swift */,
+				2FB6660A103278FE9AD216B1 /* StylePickerItem.swift */,
+				68BC2827D8BDC3B2326CAC54 /* UnavailableOverlay.swift */,
+				388CAFFCC4C96B0F61079E46 /* View+StoryJuicerGlass.swift */,
+			);
+			path = Components;
+			sourceTree = "<group>";
+		};
+/* End PBXGroup section */
+
+/* Begin PBXNativeTarget section */
+		19C1E8641252F1F99B5B36C5 /* StoryJuicer */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = 0D68269FBB4CC7D6DBF6824C /* Build configuration list for PBXNativeTarget "StoryJuicer" */;
+			buildPhases = (
+				95BED0B2F161C8FA4C7727BD /* Sources */,
+				55FE45C45DD5E020106D68F2 /* Resources */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+			);
+			name = StoryJuicer;
+			packageProductDependencies = (
+			);
+			productName = StoryJuicer;
+			productReference = 28F8ABB8B50BD5FAEF54E149 /* StoryJuicer.app */;
+			productType = "com.apple.product-type.application";
+		};
+/* End PBXNativeTarget section */
+
+/* Begin PBXProject section */
+		E8DDE17B1920D0E604579629 /* Project object */ = {
+			isa = PBXProject;
+			attributes = {
+				BuildIndependentTargetsInParallel = YES;
+				LastUpgradeCheck = 2600;
+			};
+			buildConfigurationList = E6B96B163395F8A0DFE00968 /* Build configuration list for PBXProject "StoryJuicer" */;
+			compatibilityVersion = "Xcode 14.0";
+			developmentRegion = en;
+			hasScannedForEncodings = 0;
+			knownRegions = (
+				Base,
+				en,
+			);
+			mainGroup = 7ED8B473BAC5B4AEC4D68DEB;
+			minimizedProjectReferenceProxies = 1;
+			preferredProjectObjectVersion = 77;
+			projectDirPath = "";
+			projectRoot = "";
+			targets = (
+				19C1E8641252F1F99B5B36C5 /* StoryJuicer */,
+			);
+		};
+/* End PBXProject section */
+
+/* Begin PBXResourcesBuildPhase section */
+		55FE45C45DD5E020106D68F2 /* Resources */ = {
+			isa = PBXResourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				22BC8C342CBC633940835053 /* Assets.xcassets in Resources */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXResourcesBuildPhase section */
+
+/* Begin PBXSourcesBuildPhase section */
+		95BED0B2F161C8FA4C7727BD /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				F5219188CEEC0175B7D150A8 /* BookFormat.swift in Sources */,
+				29FA6CF0E1601193715097E1 /* BookReaderViewModel.swift in Sources */,
+				8B9E78E9DA5BEE8465595AD3 /* Color+Theme.swift in Sources */,
+				13515323939A3C2160369485 /* ContentSafetyPolicy.swift in Sources */,
+				5861B5231254094B0B216128 /* CreationViewModel.swift in Sources */,
+				32329CA495B745DD19AFFE3E /* ErrorBanner.swift in Sources */,
+				E9A84753B6E9BCCC384549F5 /* FormatPreviewCard.swift in Sources */,
+				6CAD55AB88592FF100D16D73 /* GenerationOptions+Defaults.swift in Sources */,
+				FEAB8C4E2A2A9BAB1DF4A1CC /* IllustrationGenerator.swift in Sources */,
+				DF0C411FEC52347B436BC410 /* IllustrationPromptRewrite.swift in Sources */,
+				7B56D7D0E4A711C20DF7A8D0 /* IllustrationStyle.swift in Sources */,
+				BD19B308AF258F04D020C071 /* MacBookReaderView.swift in Sources */,
+				13C5EC0754FED110E7FB2DCD /* MacCreationView.swift in Sources */,
+				79302D656F6A876A4595496F /* MacExportView.swift in Sources */,
+				C39428C86CE360CD5CF7BFF0 /* MacGenerationProgressView.swift in Sources */,
+				9F1268ACE356B6D6C6998CE0 /* PDFRenderer+macOS.swift in Sources */,
+				F89BA71C370BB1518A980B21 /* PDFRendering.swift in Sources */,
+				7846D866FB000F011BE370E1 /* PageOverviewGrid.swift in Sources */,
+				9AE40FEE29EADEEA0F895C74 /* PageThumbnail.swift in Sources */,
+				6EF47E20FFD7F1A7FA087A8D /* PlatformImage.swift in Sources */,
+				8C0322332C7DC2CEA9EEEC3E /* RemoteStoryGenerator.swift in Sources */,
+				76FC035C06A62F65BCB4809A /* ShortcutStoryRequest.swift in Sources */,
+				C8C617A75FE6031FC5946A5D /* SqueezeButton.swift in Sources */,
+				56F10AC7D26C810FA11005F6 /* StoredStorybook.swift in Sources */,
+				FF0EA70920C9A5F0DAF67BAB /* StoryBook.swift in Sources */,
+				590D55E7019893856C7D38FD /* StoryGenerator.swift in Sources */,
+				66ACC963262796D865425286 /* StoryJuicerApp.swift in Sources */,
+				39C5852D4ABE3D668D33EFC8 /* StoryJuicerGlassTokens.swift in Sources */,
+				714DAF53E2326C8164196BD2 /* StoryJuicerMotion.swift in Sources */,
+				D19B94F6807692FD0FBBC55A /* StoryJuicerShortcuts.swift in Sources */,
+				5A698564F5443972F52A2362 /* StoryJuicerTypography.swift in Sources */,
+				17FA8401DFE98506B4A874C2 /* StylePickerItem.swift in Sources */,
+				67C30F38DBA26F2163D6E237 /* UnavailableOverlay.swift in Sources */,
+				A439FD9613E08288070D1FAA /* View+StoryJuicerGlass.swift in Sources */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXSourcesBuildPhase section */
+
+/* Begin XCBuildConfiguration section */
+		56D83278C3A8AA4971FCDCD3 /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ALWAYS_SEARCH_USER_PATHS = NO;
+				CLANG_ANALYZER_NONNULL = YES;
+				CLANG_ANALYZER_NUMBER_OBJECT_CONVERSION = YES_AGGRESSIVE;
+				CLANG_CXX_LANGUAGE_STANDARD = "gnu++14";
+				CLANG_CXX_LIBRARY = "libc++";
+				CLANG_ENABLE_MODULES = YES;
+				CLANG_ENABLE_OBJC_ARC = YES;
+				CLANG_ENABLE_OBJC_WEAK = YES;
+				CLANG_WARN_BLOCK_CAPTURE_AUTORELEASING = YES;
+				CLANG_WARN_BOOL_CONVERSION = YES;
+				CLANG_WARN_COMMA = YES;
+				CLANG_WARN_CONSTANT_CONVERSION = YES;
+				CLANG_WARN_DEPRECATED_OBJC_IMPLEMENTATIONS = YES;
+				CLANG_WARN_DIRECT_OBJC_ISA_USAGE = YES_ERROR;
+				CLANG_WARN_DOCUMENTATION_COMMENTS = YES;
+				CLANG_WARN_EMPTY_BODY = YES;
+				CLANG_WARN_ENUM_CONVERSION = YES;
+				CLANG_WARN_INFINITE_RECURSION = YES;
+				CLANG_WARN_INT_CONVERSION = YES;
+				CLANG_WARN_NON_LITERAL_NULL_CONVERSION = YES;
+				CLANG_WARN_OBJC_IMPLICIT_RETAIN_SELF = YES;
+				CLANG_WARN_OBJC_LITERAL_CONVERSION = YES;
+				CLANG_WARN_OBJC_ROOT_CLASS = YES_ERROR;
+				CLANG_WARN_QUOTED_INCLUDE_IN_FRAMEWORK_HEADER = YES;
+				CLANG_WARN_RANGE_LOOP_ANALYSIS = YES;
+				CLANG_WARN_STRICT_PROTOTYPES = YES;
+				CLANG_WARN_SUSPICIOUS_MOVE = YES;
+				CLANG_WARN_UNGUARDED_AVAILABILITY = YES_AGGRESSIVE;
+				CLANG_WARN_UNREACHABLE_CODE = YES;
+				CLANG_WARN__DUPLICATE_METHOD_MATCH = YES;
+				COPY_PHASE_STRIP = NO;
+				DEBUG_INFORMATION_FORMAT = dwarf;
+				ENABLE_STRICT_OBJC_MSGSEND = YES;
+				ENABLE_TESTABILITY = YES;
+				GCC_C_LANGUAGE_STANDARD = gnu11;
+				GCC_DYNAMIC_NO_PIC = NO;
+				GCC_NO_COMMON_BLOCKS = YES;
+				GCC_OPTIMIZATION_LEVEL = 0;
+				GCC_PREPROCESSOR_DEFINITIONS = (
+					"$(inherited)",
+					"DEBUG=1",
+				);
+				GCC_WARN_64_TO_32_BIT_CONVERSION = YES;
+				GCC_WARN_ABOUT_RETURN_TYPE = YES_ERROR;
+				GCC_WARN_UNDECLARED_SELECTOR = YES;
+				GCC_WARN_UNINITIALIZED_AUTOS = YES_AGGRESSIVE;
+				GCC_WARN_UNUSED_FUNCTION = YES;
+				GCC_WARN_UNUSED_VARIABLE = YES;
+				MACOSX_DEPLOYMENT_TARGET = 26.0;
+				MTL_ENABLE_DEBUG_INFO = INCLUDE_SOURCE;
+				MTL_FAST_MATH = YES;
+				ONLY_ACTIVE_ARCH = YES;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SDKROOT = macosx;
+				SWIFT_ACTIVE_COMPILATION_CONDITIONS = DEBUG;
+				SWIFT_OPTIMIZATION_LEVEL = "-Onone";
+				SWIFT_VERSION = 6.0;
+			};
+			name = Debug;
+		};
+		BFE7E6AEBA5F700DC360AD10 /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
+				CODE_SIGN_ENTITLEMENTS = Resources/StoryJuicer.entitlements;
+				COMBINE_HIDPI_IMAGES = YES;
+				CURRENT_PROJECT_VERSION = 1;
+				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_GENERATION_MODE = GeneratedFile;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/../Frameworks",
+				);
+				MARKETING_VERSION = 1.0;
+				PRODUCT_BUNDLE_IDENTIFIER = com.jakerains.StoryJuicer;
+				PRODUCT_NAME = StoryJuicer;
+				SDKROOT = macosx;
+				SWIFT_STRICT_CONCURRENCY = complete;
+			};
+			name = Debug;
+		};
+		C2153C0F48E5DC30D3C23988 /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
+				CODE_SIGN_ENTITLEMENTS = Resources/StoryJuicer.entitlements;
+				COMBINE_HIDPI_IMAGES = YES;
+				CURRENT_PROJECT_VERSION = 1;
+				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_GENERATION_MODE = GeneratedFile;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/../Frameworks",
+				);
+				MARKETING_VERSION = 1.0;
+				PRODUCT_BUNDLE_IDENTIFIER = com.jakerains.StoryJuicer;
+				PRODUCT_NAME = StoryJuicer;
+				SDKROOT = macosx;
+				SWIFT_STRICT_CONCURRENCY = complete;
+			};
+			name = Release;
+		};
+		E2240D0597298E81101B22D1 /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ALWAYS_SEARCH_USER_PATHS = NO;
+				CLANG_ANALYZER_NONNULL = YES;
+				CLANG_ANALYZER_NUMBER_OBJECT_CONVERSION = YES_AGGRESSIVE;
+				CLANG_CXX_LANGUAGE_STANDARD = "gnu++14";
+				CLANG_CXX_LIBRARY = "libc++";
+				CLANG_ENABLE_MODULES = YES;
+				CLANG_ENABLE_OBJC_ARC = YES;
+				CLANG_ENABLE_OBJC_WEAK = YES;
+				CLANG_WARN_BLOCK_CAPTURE_AUTORELEASING = YES;
+				CLANG_WARN_BOOL_CONVERSION = YES;
+				CLANG_WARN_COMMA = YES;
+				CLANG_WARN_CONSTANT_CONVERSION = YES;
+				CLANG_WARN_DEPRECATED_OBJC_IMPLEMENTATIONS = YES;
+				CLANG_WARN_DIRECT_OBJC_ISA_USAGE = YES_ERROR;
+				CLANG_WARN_DOCUMENTATION_COMMENTS = YES;
+				CLANG_WARN_EMPTY_BODY = YES;
+				CLANG_WARN_ENUM_CONVERSION = YES;
+				CLANG_WARN_INFINITE_RECURSION = YES;
+				CLANG_WARN_INT_CONVERSION = YES;
+				CLANG_WARN_NON_LITERAL_NULL_CONVERSION = YES;
+				CLANG_WARN_OBJC_IMPLICIT_RETAIN_SELF = YES;
+				CLANG_WARN_OBJC_LITERAL_CONVERSION = YES;
+				CLANG_WARN_OBJC_ROOT_CLASS = YES_ERROR;
+				CLANG_WARN_QUOTED_INCLUDE_IN_FRAMEWORK_HEADER = YES;
+				CLANG_WARN_RANGE_LOOP_ANALYSIS = YES;
+				CLANG_WARN_STRICT_PROTOTYPES = YES;
+				CLANG_WARN_SUSPICIOUS_MOVE = YES;
+				CLANG_WARN_UNGUARDED_AVAILABILITY = YES_AGGRESSIVE;
+				CLANG_WARN_UNREACHABLE_CODE = YES;
+				CLANG_WARN__DUPLICATE_METHOD_MATCH = YES;
+				COPY_PHASE_STRIP = NO;
+				DEBUG_INFORMATION_FORMAT = "dwarf-with-dsym";
+				ENABLE_NS_ASSERTIONS = NO;
+				ENABLE_STRICT_OBJC_MSGSEND = YES;
+				GCC_C_LANGUAGE_STANDARD = gnu11;
+				GCC_NO_COMMON_BLOCKS = YES;
+				GCC_WARN_64_TO_32_BIT_CONVERSION = YES;
+				GCC_WARN_ABOUT_RETURN_TYPE = YES_ERROR;
+				GCC_WARN_UNDECLARED_SELECTOR = YES;
+				GCC_WARN_UNINITIALIZED_AUTOS = YES_AGGRESSIVE;
+				GCC_WARN_UNUSED_FUNCTION = YES;
+				GCC_WARN_UNUSED_VARIABLE = YES;
+				MACOSX_DEPLOYMENT_TARGET = 26.0;
+				MTL_ENABLE_DEBUG_INFO = NO;
+				MTL_FAST_MATH = YES;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SDKROOT = macosx;
+				SWIFT_COMPILATION_MODE = wholemodule;
+				SWIFT_OPTIMIZATION_LEVEL = "-O";
+				SWIFT_VERSION = 6.0;
+			};
+			name = Release;
+		};
+/* End XCBuildConfiguration section */
+
+/* Begin XCConfigurationList section */
+		0D68269FBB4CC7D6DBF6824C /* Build configuration list for PBXNativeTarget "StoryJuicer" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				BFE7E6AEBA5F700DC360AD10 /* Debug */,
+				C2153C0F48E5DC30D3C23988 /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Debug;
+		};
+		E6B96B163395F8A0DFE00968 /* Build configuration list for PBXProject "StoryJuicer" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				56D83278C3A8AA4971FCDCD3 /* Debug */,
+				E2240D0597298E81101B22D1 /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Debug;
+		};
+/* End XCConfigurationList section */
+	};
+	rootObject = E8DDE17B1920D0E604579629 /* Project object */;
+}
