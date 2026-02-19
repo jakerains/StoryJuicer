@@ -7,6 +7,14 @@
         <language>en</language>
         <!-- Items will be added by generate_appcast after the first Sparkle-enabled release -->
         <item>
+            <title>1.2.0</title>
+            <pubDate>Thu, 19 Feb 2026 17:05:22 -0600</pubDate>
+            <sparkle:version>6</sparkle:version>
+            <sparkle:shortVersionString>1.2.0</sparkle:shortVersionString>
+            <sparkle:minimumSystemVersion>26.0</sparkle:minimumSystemVersion>
+            <enclosure url="https://github.com/jakerains/StoryJuicer/releases/download/v1.2.0/StoryJuicer.dmg" length="28634773" type="application/octet-stream" sparkle:edSignature="1MnbdZY4Np2HSqCxSa6BVjwhLJklby5m7r8fDti7UTkvMS5+ned5DG9pvbPZc3lFAHz7HJF+aeT4E+9sFRnbAw=="/>
+        </item>
+        <item>
             <title>1.1.1</title>
             <pubDate>Thu, 19 Feb 2026 15:55:19 -0600</pubDate>
             <sparkle:version>5</sparkle:version>
@@ -21,14 +29,6 @@
             <sparkle:shortVersionString>1.1.0</sparkle:shortVersionString>
             <sparkle:minimumSystemVersion>26.0</sparkle:minimumSystemVersion>
             <enclosure url="https://github.com/jakerains/StoryJuicer/releases/download/v1.1.0/StoryJuicer.dmg" length="28468432" type="application/octet-stream" sparkle:edSignature="VCmdZ0Z/jcXhPNg0x+EI+BL+dFYXD8Tkjpq6yKyEqiFI9mLSvs8MTOwPPZj2sTr47LuPa8dIv4wNLOcN3xLyCA=="/>
-        </item>
-        <item>
-            <title>1.0.2</title>
-            <pubDate>Thu, 19 Feb 2026 11:51:47 -0600</pubDate>
-            <sparkle:version>3</sparkle:version>
-            <sparkle:shortVersionString>1.0.2</sparkle:shortVersionString>
-            <sparkle:minimumSystemVersion>26.0</sparkle:minimumSystemVersion>
-            <enclosure url="https://github.com/jakerains/StoryJuicer/releases/download/v1.1.0/StoryJuicer.dmg" length="27648029" type="application/octet-stream" sparkle:edSignature="lndqS1IGMIu22Rvn0Xp9krS3yhgUhoHz8Oqj/AEzyV8Qn0e6nHpH1icuOKH0m5WNAeJDsDwylc1x/uen79x/Cw=="/>
         </item>
     </channel>
 </rss>
