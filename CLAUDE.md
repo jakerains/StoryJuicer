@@ -92,6 +92,7 @@ macOS/
     MacModelSettingsView.swift   ← Model & provider settings panel
     CloudProviderSettingsSection ← Per-provider settings card (auth, model pickers, test buttons)
     CloudProviderLoginButton     ← OAuth login button for cloud providers
+  SoftwareUpdateManager.swift    ← Sparkle auto-update wrapper (@Observable)
   PDFRenderer+macOS.swift        ← Core Graphics PDF rendering at 300 DPI
 ```
 
@@ -169,14 +170,55 @@ Error messages use `.textSelection(.enabled)` so users can copy them.
 
 ## Distribution
 
+### Releasing a New Version
+
+Use the release script for the full automated pipeline:
+
+```bash
+# Release with default notes
+./scripts/release.sh 1.1.0
+
+# Release with custom notes
+./scripts/release.sh 1.0.3 --notes "Fixed a bug with PDF export"
+```
+
+The script handles everything: version bump → `make dmg` → appcast generation → GitHub release → commit → push. Users on older versions are prompted automatically via Sparkle.
+
+**Manual release steps** (if not using the script):
+1. Bump `MARKETING_VERSION` and `CURRENT_PROJECT_VERSION` in `project.yml` (macOS target only — iOS version is independent)
+2. `make dmg` — build, sign, notarize, package
+3. `make appcast` — regenerate `appcast.xml` with EdDSA signatures
+4. If appcast is missing `sparkle:edSignature`, run `make sign-update DMG=dist/StoryJuicer.dmg` and add it manually
+5. `gh release create v<version> dist/StoryJuicer.dmg` — upload to GitHub Releases
+6. Commit `project.yml`, `appcast.xml`, and `project.pbxproj`, then push to main
+
+### Auto-Update (Sparkle 2)
+
+StoryJuicer uses [Sparkle 2](https://sparkle-project.org/) for auto-updates (macOS only, not iOS).
+
+**Key files:**
+- `macOS/SoftwareUpdateManager.swift` — `@Observable` wrapper around `SPUStandardUpdaterController`
+- `Resources/StoryJuicer-Info.plist` — contains `SUPublicEDKey` (Ed25519 public key for signature verification)
+- `appcast.xml` — RSS feed at repo root listing available versions with download URLs and EdDSA signatures
+
+**Architecture:**
+- Feed URL is set programmatically via `SPUUpdaterDelegate.feedURLString(for:)` in `SoftwareUpdateManager` (XcodeGen can't inject custom Info.plist keys via `INFOPLIST_KEY_` — that only works for Apple-registered keys)
+- Public key MUST be in Info.plist (not programmatic — Sparkle enforces this for security). We use `INFOPLIST_FILE: Resources/StoryJuicer-Info.plist` as a template, and Xcode merges it with auto-generated keys since `GENERATE_INFOPLIST_FILE: YES`
+- EdDSA private key is stored in the developer's macOS Keychain (created by `make sparkle-setup`)
+- Appcast is hosted at `https://raw.githubusercontent.com/jakerains/StoryJuicer/main/appcast.xml`
+- DMGs are hosted as GitHub Release assets
+
+**Important:** Do NOT delete `Resources/StoryJuicer-Info.plist` — it carries the `SUPublicEDKey`. Without it, update signature validation fails.
+
 ### DMG Build (`make dmg`)
 Produces a signed, notarized DMG at `dist/StoryJuicer.dmg`. Pipeline:
 1. `xcodegen generate` — regenerate project
-2. `xcodebuild archive` — Release archive with Developer ID signing
-3. `xcodebuild -exportArchive` — export signed `.app`
-4. `xcrun notarytool submit` — notarize with Apple
-5. `xcrun stapler staple` — staple notarization ticket
-6. `hdiutil create` — package into DMG, notarize + staple the DMG itself
+2. Restore entitlements (XcodeGen overwrites them)
+3. `xcodebuild archive` — Release archive with Developer ID signing
+4. `xcodebuild -exportArchive` — export signed `.app`
+5. `xcrun notarytool submit` — notarize with Apple
+6. `xcrun stapler staple` — staple notarization ticket
+7. `hdiutil create` — package into DMG, notarize + staple the DMG itself
 
 **Signing identity:** `Developer ID Application: Jacob RAINS (47347VQHQV)`
 **Notarization profile:** `StoryJuicer-Notarize` (stored in Keychain via `xcrun notarytool store-credentials`)
@@ -189,6 +231,9 @@ Produces a signed, notarized DMG at `dist/StoryJuicer.dmg`. Pipeline:
 - `make dmg` — full distribution pipeline
 - `make clean` — clean Xcode build artifacts
 - `make purge-image-cache` — remove local Diffusers model cache
+- `make sparkle-setup` — one-time EdDSA key pair generation
+- `make appcast` — regenerate `appcast.xml` from DMGs in `dist/`
+- `make sign-update DMG=<path>` — print EdDSA signature for a DMG
 
 ## Theme Colors
 

@@ -7,6 +7,14 @@
         <language>en</language>
         <!-- Items will be added by generate_appcast after the first Sparkle-enabled release -->
         <item>
+            <title>1.0.2</title>
+            <pubDate>Thu, 19 Feb 2026 11:51:47 -0600</pubDate>
+            <sparkle:version>3</sparkle:version>
+            <sparkle:shortVersionString>1.0.2</sparkle:shortVersionString>
+            <sparkle:minimumSystemVersion>26.0</sparkle:minimumSystemVersion>
+            <enclosure url="https://github.com/jakerains/StoryJuicer/releases/download/v1.0.2/StoryJuicer.dmg" length="27616724" type="application/octet-stream" sparkle:edSignature="8/kzzkyzcMNxQqvx2tq6UrhHCdHrjO0NC3k3tEcPmuVtmik42z59mS8fa3yjjcC/dizDTaFFMdQHUPEIJ5ZVCw=="/>
+        </item>
+        <item>
             <title>1.0.1</title>
             <pubDate>Thu, 19 Feb 2026 11:41:28 -0600</pubDate>
             <sparkle:version>2</sparkle:version>
