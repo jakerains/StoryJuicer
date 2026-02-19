@@ -1,10 +1,18 @@
-<?xml version="1.0" encoding="utf-8"?>
-<rss version="2.0" xmlns:sparkle="http://www.andymatuschak.org/xml-namespaces/sparkle" xmlns:dc="http://purl.org/dc/elements/1.1/">
-  <channel>
-    <title>StoryJuicer Updates</title>
-    <link>https://raw.githubusercontent.com/jakerains/StoryJuicer/main/appcast.xml</link>
-    <description>Most recent changes with links to updates.</description>
-    <language>en</language>
-    <!-- Items will be added by generate_appcast after the first Sparkle-enabled release -->
-  </channel>
+<?xml version="1.0" encoding="utf-8" standalone="yes"?>
+<rss xmlns:sparkle="http://www.andymatuschak.org/xml-namespaces/sparkle" xmlns:dc="http://purl.org/dc/elements/1.1/" version="2.0">
+    <channel>
+        <title>StoryJuicer Updates</title>
+        <link>https://raw.githubusercontent.com/jakerains/StoryJuicer/main/appcast.xml</link>
+        <description>Most recent changes with links to updates.</description>
+        <language>en</language>
+        <!-- Items will be added by generate_appcast after the first Sparkle-enabled release -->
+        <item>
+            <title>1.0.1</title>
+            <pubDate>Thu, 19 Feb 2026 11:41:28 -0600</pubDate>
+            <sparkle:version>2</sparkle:version>
+            <sparkle:shortVersionString>1.0.1</sparkle:shortVersionString>
+            <sparkle:minimumSystemVersion>26.0</sparkle:minimumSystemVersion>
+            <enclosure url="https://github.com/jakerains/StoryJuicer/releases/download/v1.0.1/StoryJuicer.dmg" sparkle:edSignature="JpIArCqAkDSbwNZzUbYIMuNsjjxejY9RXXSe+xcqsAcAD0h5+frPzPez5TUffni4CzRnIPzOXm6sj4iYa5KICw==" length="27616598" type="application/octet-stream"/>
+        </item>
+    </channel>
 </rss>

@@ -9,10 +9,18 @@
 </p>
 
 <p align="center">
-  <a href="https://github.com/jakerains/StoryJuicer/releases/latest"><img src="https://img.shields.io/github/v/release/jakerains/StoryJuicer?include_prereleases&label=download&color=D4654A" alt="Latest Release" /></a>
   <img src="https://img.shields.io/badge/platform-macOS%2026%20%7C%20iOS%2026-blue" alt="Platform" />
   <img src="https://img.shields.io/badge/swift-6.2-F05138" alt="Swift" />
   <img src="https://img.shields.io/badge/Apple%20Intelligence-required-black?logo=apple" alt="Apple Intelligence" />
+</p>
+
+<p align="center">
+  <a href="https://github.com/jakerains/StoryJuicer/releases/latest/download/StoryJuicer.dmg">
+    <img src="https://img.shields.io/badge/%E2%AC%87%EF%B8%8F_Download_for_Mac-StoryJuicer.dmg-D4654A?style=for-the-badge&logo=apple&logoColor=white" alt="Download for Mac" />
+  </a>
+</p>
+<p align="center">
+  <sub>Signed &amp; notarized &bull; Requires macOS 26 on Apple Silicon &bull; <a href="https://github.com/jakerains/StoryJuicer/releases/latest">All releases</a></sub>
 </p>
 
 ---
