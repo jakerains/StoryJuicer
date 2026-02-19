@@ -154,6 +154,20 @@ func cgImageToPNGData(_ cgImage: CGImage) -> Data? {
     #endif
 }
 
+func cgImageToJPEGData(_ cgImage: CGImage, quality: Double = 0.85) -> Data? {
+    #if os(macOS)
+    let nsImage = NSImage(cgImage: cgImage)
+    guard let tiffData = nsImage.tiffRepresentation,
+          let bitmapRep = NSBitmapImageRep(data: tiffData) else {
+        return nil
+    }
+    return bitmapRep.representation(using: .jpeg, properties: [.compressionFactor: quality])
+    #else
+    let uiImage = UIImage(cgImage: cgImage)
+    return uiImage.jpegData(compressionQuality: quality)
+    #endif
+}
+
 private func cgImageFromData(_ data: Data) -> CGImage? {
     #if os(macOS)
     guard let nsImage = NSImage(data: data),

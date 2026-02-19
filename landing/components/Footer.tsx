@@ -1,9 +1,14 @@
 "use client";
 
 import Image from "next/image";
+import Link from "next/link";
+import { track } from "@vercel/analytics";
 import { DownloadButton } from "./DownloadButton";
+import { latestVersion } from "@/lib/changelog";
 
 export function Footer() {
+  const version = latestVersion();
+
   return (
     <footer className="relative border-t border-transparent">
       {/* Gradient top border */}
@@ -37,11 +42,12 @@ export function Footer() {
 
           {/* Links */}
           <div className="flex flex-col items-center gap-3 md:items-center">
-            <div className="flex items-center gap-4">
+            <div className="flex flex-wrap items-center justify-center gap-3">
               <a
                 href="https://github.com/jakerains/StoryJuicer"
                 target="_blank"
                 rel="noopener noreferrer"
+                onClick={() => track("GitHub Click", { location: "footer" })}
                 className="inline-flex items-center gap-2 rounded-full border border-sj-border/50 bg-[var(--sj-card)]/60 px-4 py-2 text-sm font-medium text-sj-secondary backdrop-blur-sm transition-all duration-200 hover:border-sj-coral/40 hover:text-sj-coral"
               >
                 <svg className="h-4 w-4" fill="currentColor" viewBox="0 0 24 24">
@@ -49,15 +55,25 @@ export function Footer() {
                 </svg>
                 View on GitHub
               </a>
+              <Link
+                href="/changelog"
+                onClick={() => track("Changelog Click", { location: "footer" })}
+                className="inline-flex items-center gap-2 rounded-full border border-sj-border/50 bg-[var(--sj-card)]/60 px-4 py-2 text-sm font-medium text-sj-secondary backdrop-blur-sm transition-all duration-200 hover:border-sj-coral/40 hover:text-sj-coral"
+              >
+                <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2" />
+                </svg>
+                Changelog
+              </Link>
               <span className="rounded-full bg-sj-gold/10 px-2.5 py-0.5 text-xs font-medium text-sj-gold">
-                v1.0.3
+                v{version}
               </span>
             </div>
           </div>
 
           {/* Download CTA */}
           <div className="flex flex-col items-center gap-2 md:items-end">
-            <DownloadButton size="sm" />
+            <DownloadButton size="sm" location="footer" />
           </div>
         </div>
       </div>

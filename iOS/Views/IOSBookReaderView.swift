@@ -9,6 +9,7 @@ struct IOSBookReaderView: View {
 
     @Bindable var viewModel: BookReaderViewModel
     let pdfRenderer: StoryPDFRenderer
+    let epubRenderer: StoryEPUBRenderer
     let onBackToHome: () -> Void
 
     @Environment(\.horizontalSizeClass) private var sizeClass
@@ -49,19 +50,38 @@ struct IOSBookReaderView: View {
                 }
                 .sjGlassToolbarItem(prominent: false)
 
-                ShareLink(
-                    item: IOSExportView.renderPDFToFile(
-                        storybook: viewModel.storyBook,
-                        images: viewModel.images,
-                        format: viewModel.format,
-                        renderer: pdfRenderer
-                    ),
-                    preview: SharePreview(
-                        viewModel.storyBook.title,
-                        image: Image(systemName: "doc.richtext")
-                    )
-                ) {
-                    Label("Share PDF", systemImage: "square.and.arrow.up")
+                Menu {
+                    ShareLink(
+                        item: IOSExportView.renderPDFToFile(
+                            storybook: viewModel.storyBook,
+                            images: viewModel.images,
+                            format: viewModel.format,
+                            renderer: pdfRenderer
+                        ),
+                        preview: SharePreview(
+                            viewModel.storyBook.title,
+                            image: Image(systemName: "doc.richtext")
+                        )
+                    ) {
+                        Label("Share as PDF", systemImage: "doc.richtext")
+                    }
+
+                    ShareLink(
+                        item: IOSExportView.renderEPUBToFile(
+                            storybook: viewModel.storyBook,
+                            images: viewModel.images,
+                            format: viewModel.format,
+                            renderer: epubRenderer
+                        ),
+                        preview: SharePreview(
+                            viewModel.storyBook.title,
+                            image: Image(systemName: "book")
+                        )
+                    ) {
+                        Label("Share as EPUB", systemImage: "book")
+                    }
+                } label: {
+                    Label("Share", systemImage: "square.and.arrow.up")
                 }
                 .sjGlassToolbarItem(prominent: true)
                 .tint(Color.sjCoral)

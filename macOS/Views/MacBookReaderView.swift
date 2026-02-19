@@ -9,6 +9,7 @@ struct MacBookReaderView: View {
 
     @Bindable var viewModel: BookReaderViewModel
     let onExportPDF: () -> Void
+    let onExportEPUB: () -> Void
     let onBackToHome: () -> Void
 
     @State private var activeSheet: ReaderSheet?
@@ -42,10 +43,20 @@ struct MacBookReaderView: View {
                 }
                 .sjGlassToolbarItem(prominent: false)
 
-                Button {
-                    onExportPDF()
+                Menu {
+                    Button {
+                        onExportPDF()
+                    } label: {
+                        Label("Export as PDF", systemImage: "doc.richtext")
+                    }
+
+                    Button {
+                        onExportEPUB()
+                    } label: {
+                        Label("Export as EPUB", systemImage: "book")
+                    }
                 } label: {
-                    Label("Export PDF", systemImage: "square.and.arrow.up")
+                    Label("Export", systemImage: "square.and.arrow.up")
                 }
                 .sjGlassToolbarItem(prominent: true)
                 .tint(Color.sjCoral)

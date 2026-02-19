@@ -69,7 +69,7 @@ export function Navigation() {
         <div className="flex items-center gap-3">
           <ThemeToggle />
           <div className="hidden sm:block">
-            <DownloadButton size="sm" />
+            <DownloadButton size="sm" location="nav" />
           </div>
         </div>
       </div>

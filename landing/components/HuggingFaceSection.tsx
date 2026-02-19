@@ -1,6 +1,7 @@
 "use client";
 
 import { motion } from "framer-motion";
+import { track } from "@vercel/analytics";
 import { fadeUpVariants, staggerContainer } from "@/lib/motion";
 import { GlassCard } from "./GlassCard";
 
@@ -154,6 +155,7 @@ export function HuggingFaceSection() {
                   href="https://huggingface.co/join"
                   target="_blank"
                   rel="noopener noreferrer"
+                  onClick={() => track("HuggingFace Join")}
                   className="inline-flex items-center gap-2.5 rounded-full bg-sj-coral px-6 py-3 font-sans text-sm font-semibold text-white shadow-[0_4px_14px_rgba(180,84,58,0.3)] transition-all duration-200 hover:bg-sj-coral-hover hover:shadow-[0_6px_20px_rgba(180,84,58,0.45)]"
                 >
                   <HFLogo className="h-4 w-4" />

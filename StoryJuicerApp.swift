@@ -51,6 +51,7 @@ struct MainView: View {
     @State private var route: AppRoute = .creation
     @State private var readerViewModel: BookReaderViewModel?
     @State private var pdfRenderer = StoryPDFRenderer()
+    @State private var epubRenderer = StoryEPUBRenderer()
     @State private var selectedSavedBookID: UUID?
 #if os(iOS)
     @State private var showingSettings = false
@@ -354,6 +355,14 @@ struct MainView: View {
                     renderer: pdfRenderer
                 )
             },
+            onExportEPUB: {
+                MacExportView.exportEPUB(
+                    storybook: readerVM.storyBook,
+                    images: readerVM.images,
+                    format: readerVM.format,
+                    renderer: epubRenderer
+                )
+            },
             onBackToHome: {
                 viewModel.reset()
                 readerViewModel = nil
@@ -364,6 +373,7 @@ struct MainView: View {
         IOSBookReaderView(
             viewModel: readerVM,
             pdfRenderer: pdfRenderer,
+            epubRenderer: epubRenderer,
             onBackToHome: {
                 viewModel.reset()
                 readerViewModel = nil

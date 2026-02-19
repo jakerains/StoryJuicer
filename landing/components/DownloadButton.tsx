@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { track } from "@vercel/analytics";
 
 const DMG_URL =
   "https://github.com/jakerains/StoryJuicer/releases/latest/download/StoryJuicer.dmg";
@@ -32,7 +33,13 @@ function GitHubIcon({ className }: { className?: string }) {
   );
 }
 
-export function DownloadButton({ size = "lg" }: { size?: "sm" | "lg" }) {
+export function DownloadButton({
+  size = "lg",
+  location = "hero",
+}: {
+  size?: "sm" | "lg";
+  location?: "hero" | "nav" | "footer";
+}) {
   const [isMac, setIsMac] = useState<boolean | null>(null);
 
   useEffect(() => {
@@ -47,10 +54,18 @@ export function DownloadButton({ size = "lg" }: { size?: "sm" | "lg" }) {
 
   const showMac = isMac !== false;
 
+  const handleClick = () => {
+    track("Download", {
+      location,
+      platform: showMac ? "mac" : "other",
+    });
+  };
+
   if (size === "sm") {
     return (
       <a
         href={showMac ? DMG_URL : GITHUB_URL}
+        onClick={handleClick}
         className="inline-flex items-center gap-2 rounded-full bg-sj-coral px-5 py-2 font-sans text-sm font-semibold text-white shadow-[0_4px_14px_rgba(180,84,58,0.3)] transition-all duration-200 hover:bg-sj-coral-hover hover:shadow-[0_6px_20px_rgba(180,84,58,0.45)]"
       >
         {showMac ? <AppleIcon className="h-4 w-4" /> : <GitHubIcon className="h-4 w-4" />}
@@ -62,6 +77,7 @@ export function DownloadButton({ size = "lg" }: { size?: "sm" | "lg" }) {
   return (
     <a
       href={DMG_URL}
+      onClick={handleClick}
       className="inline-flex items-center gap-2.5 rounded-full bg-sj-coral px-7 py-3.5 font-sans text-base font-semibold text-white shadow-[0_4px_14px_rgba(180,84,58,0.38)] ring-1 ring-white/20 transition-all duration-200 hover:bg-sj-coral-hover hover:shadow-[0_6px_20px_rgba(180,84,58,0.52)]"
     >
       <AppleIcon className="h-5 w-5" />

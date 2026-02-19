@@ -21,3 +21,4 @@ dist/
 .claude/*.local.md
 .claude/*.local.json
 .vercel
+.env*.local
