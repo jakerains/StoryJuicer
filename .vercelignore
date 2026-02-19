@@ -1,0 +1,29 @@
+# Swift/Xcode project files
+*.xcodeproj
+*.swift
+Shared/
+macOS/
+iOS/
+Resources/
+build/
+dist/
+output/
+tmp/
+
+# Documentation
+*.md
+*.docx
+~$*
+
+# Config files not needed for landing page
+project.yml
+Makefile
+appcast.xml
+
+# Scripts
+scripts/
+
+# Other
+.firecrawl/
+.github/
+.DS_Store
