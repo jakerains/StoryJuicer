@@ -86,13 +86,14 @@ struct DiffusersImageGenerator: StoryImageGenerating {
     }
 
     private func styledPrompt(prompt: String, style: IllustrationStyle) -> String {
+        let noText = " Absolutely no text, words, letters, or numbers in the image."
         switch style {
         case .illustration:
-            return "\(prompt) Storybook illustration style, painterly details, soft shading."
+            return "\(prompt) Storybook illustration style, painterly details, soft shading." + noText
         case .animation:
-            return "\(prompt) Family-friendly animated style, rounded shapes, cinematic lighting."
+            return "\(prompt) Family-friendly animated style, rounded shapes, cinematic lighting." + noText
         case .sketch:
-            return "\(prompt) Hand-drawn sketch style, textured pencil lines, gentle watercolor fill."
+            return "\(prompt) Hand-drawn sketch style, textured pencil lines, gentle watercolor fill." + noText
         }
     }
 }

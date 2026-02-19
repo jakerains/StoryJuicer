@@ -215,17 +215,21 @@ struct IOSGenerationProgressView: View {
                 spacing: StoryJuicerGlassTokens.Spacing.small
             ) {
                 if let book = viewModel.storyBook {
+                    let ratio = viewModel.selectedFormat.aspectRatio
+
                     PageThumbnail(
                         pageNumber: 0,
                         image: viewModel.generatedImages[0],
-                        isGenerating: viewModel.generatedImages[0] == nil
+                        isGenerating: viewModel.generatedImages[0] == nil,
+                        aspectRatio: ratio
                     )
 
                     ForEach(book.pages, id: \.pageNumber) { page in
                         PageThumbnail(
                             pageNumber: page.pageNumber,
                             image: viewModel.generatedImages[page.pageNumber],
-                            isGenerating: viewModel.generatedImages[page.pageNumber] == nil
+                            isGenerating: viewModel.generatedImages[page.pageNumber] == nil,
+                            aspectRatio: ratio
                         )
                     }
                 }

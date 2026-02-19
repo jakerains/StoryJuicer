@@ -102,6 +102,7 @@ struct PageOverviewGrid: View {
                         image: viewModel.images[index],
                         isGenerating: viewModel.regeneratingPages.contains(index),
                         isSelected: isCurrentPage,
+                        aspectRatio: viewModel.format.aspectRatio,
                         onRegenerate: nil
                     )
                 }
@@ -112,6 +113,7 @@ struct PageOverviewGrid: View {
                     image: viewModel.images[index],
                     isGenerating: viewModel.regeneratingPages.contains(index),
                     isSelected: isCurrentPage,
+                    aspectRatio: viewModel.format.aspectRatio,
                     onRegenerate: {
                         Task { await viewModel.regeneratePage(index: index) }
                     }

@@ -168,6 +168,6 @@ struct CloudImageGenerator: StoryImageGenerating {
         case .sketch:
             suffix = ", pencil sketch style, hand-drawn, delicate linework"
         }
-        return prompt + suffix
+        return prompt + suffix + ". Absolutely no text, words, letters, or numbers in the image."
     }
 }

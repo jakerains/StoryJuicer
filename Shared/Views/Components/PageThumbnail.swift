@@ -6,6 +6,7 @@ struct PageThumbnail: View {
     let image: CGImage?
     let isGenerating: Bool
     var isSelected: Bool = false
+    var aspectRatio: CGFloat = 1.0
     var onRegenerate: (() -> Void)? = nil
 
     var body: some View {
@@ -61,7 +62,7 @@ struct PageThumbnail: View {
                     lineWidth: isSelected ? 2 : 1
                 )
         }
-        .aspectRatio(1.0, contentMode: .fit)
+        .aspectRatio(aspectRatio, contentMode: .fit)
         .shadow(color: Color.black.opacity(0.08), radius: 8, y: 4)
         .overlay(alignment: .bottomTrailing) {
             Text("\(pageNumber)")

@@ -197,14 +197,28 @@ final class CloudModelListCache {
         return (text, image)
     }
 
+    /// Curated Black Forest Labs image models known to work well with HF Inference.
+    static let curatedHFImageModels: [CloudModelInfo] = [
+        CloudModelInfo(id: "black-forest-labs/FLUX.1-schnell", displayName: "FLUX.1 schnell", provider: .huggingFace, modality: .image),
+        CloudModelInfo(id: "black-forest-labs/FLUX.1-dev", displayName: "FLUX.1 dev", provider: .huggingFace, modality: .image),
+        CloudModelInfo(id: "black-forest-labs/FLUX.1-Canny-dev", displayName: "FLUX.1 Canny dev", provider: .huggingFace, modality: .image),
+        CloudModelInfo(id: "black-forest-labs/FLUX.1-Depth-dev", displayName: "FLUX.1 Depth dev", provider: .huggingFace, modality: .image),
+        CloudModelInfo(id: "black-forest-labs/FLUX.1-Redux-dev", displayName: "FLUX.1 Redux dev", provider: .huggingFace, modality: .image),
+        CloudModelInfo(id: "black-forest-labs/FLUX.1-Fill-dev", displayName: "FLUX.1 Fill dev", provider: .huggingFace, modality: .image),
+    ]
+
     private func parseHuggingFaceModels(_ data: Data, provider: CloudProvider, modality: CloudModelModality) -> [CloudModelInfo] {
+        // For image models, use curated Black Forest Labs list instead of dynamic API results
+        if modality == .image {
+            return Self.curatedHFImageModels
+        }
+
         guard let models = try? JSONSerialization.jsonObject(with: data) as? [[String: Any]] else {
             return []
         }
 
         return models.compactMap { model -> CloudModelInfo? in
             guard let id = model["id"] as? String else { return nil }
-            // Use modelId or fall back to id
             let name = (model["modelId"] as? String) ?? id
             return CloudModelInfo(id: id, displayName: name, provider: provider, modality: modality)
         }
@@ -226,6 +240,9 @@ final class CloudModelListCache {
     }
 
     private func loadFromDefaults() {
+        // Always seed HF image models with curated Black Forest Labs list
+        imageModels[.huggingFace] = Self.curatedHFImageModels
+
         for provider in CloudProvider.allCases {
             let key = Self.defaultsKeyPrefix + provider.rawValue
             guard let data = UserDefaults.standard.data(forKey: key),
@@ -236,8 +253,11 @@ final class CloudModelListCache {
             textModels[provider] = zip(dto.textModelIDs, dto.textModelNames).map {
                 CloudModelInfo(id: $0.0, displayName: $0.1, provider: provider, modality: .text)
             }
-            imageModels[provider] = zip(dto.imageModelIDs, dto.imageModelNames).map {
-                CloudModelInfo(id: $0.0, displayName: $0.1, provider: provider, modality: .image)
+            // For HF image models, always use curated list (already set above)
+            if provider != .huggingFace || dto.imageModelIDs.isEmpty {
+                imageModels[provider] = zip(dto.imageModelIDs, dto.imageModelNames).map {
+                    CloudModelInfo(id: $0.0, displayName: $0.1, provider: provider, modality: .image)
+                }
             }
         }
     }
