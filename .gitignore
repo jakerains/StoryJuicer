@@ -20,3 +20,4 @@ dist/
 # Claude Code
 .claude/*.local.md
 .claude/*.local.json
+.vercel

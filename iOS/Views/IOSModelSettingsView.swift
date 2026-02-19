@@ -35,7 +35,6 @@ struct IOSModelSettingsView: View {
 
                     sectionLabel("On-Device", systemImage: "cpu")
                     foundationModelSection
-                    mlxModelSection
 
                     sectionLabel("Cloud Providers", systemImage: "cloud")
                     huggingFaceCallout
@@ -44,6 +43,9 @@ struct IOSModelSettingsView: View {
                         settings: $settings,
                         modelCache: cloudModelCache
                     )
+
+                    sectionLabel("Local Models", systemImage: "arrow.down.circle")
+                    mlxModelSection
                 }
                 .padding(StoryJuicerGlassTokens.Spacing.large)
             }

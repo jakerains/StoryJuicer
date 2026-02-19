@@ -108,8 +108,8 @@ struct CloudProviderSettingsSection: View {
                 .font(StoryJuicerTypography.settingsMeta)
                 .foregroundStyle(Color.sjSecondaryText)
 
-            HStack(spacing: StoryJuicerGlassTokens.Spacing.small) {
-                if hfOAuth.isLoggedIn {
+            if hfOAuth.isLoggedIn {
+                HStack(spacing: StoryJuicerGlassTokens.Spacing.small) {
                     Image(systemName: "checkmark.circle.fill")
                         .foregroundStyle(Color.green)
                     Text("Signed in\(hfOAuth.username.map { " as \($0)" } ?? "")")
@@ -120,13 +120,30 @@ struct CloudProviderSettingsSection: View {
                         Task { await hfOAuth.logout() }
                     }
                     .buttonStyle(.glass)
-                } else {
-                    Button(hfOAuth.isLoggingIn ? "Signing in..." : "Sign in with Hugging Face") {
-                        Task { await hfOAuth.login() }
-                    }
-                    .buttonStyle(.glassProminent)
-                    .disabled(hfOAuth.isLoggingIn)
                 }
+            } else {
+                Button {
+                    Task { await hfOAuth.login() }
+                } label: {
+                    HStack(spacing: 8) {
+                        Text("🤗")
+                            .font(.system(size: 18))
+                        Text(hfOAuth.isLoggingIn ? "Signing in…" : "Sign in with Hugging Face")
+                            .font(.system(size: 14, weight: .medium))
+                    }
+                    .padding(.horizontal, 16)
+                    .padding(.vertical, 8)
+                    .background(Color(.sRGB, red: 1.0, green: 0.82, blue: 0.12, opacity: 1.0))
+                    .foregroundStyle(.black)
+                    .clipShape(RoundedRectangle(cornerRadius: 8))
+                    .overlay(
+                        RoundedRectangle(cornerRadius: 8)
+                            .strokeBorder(Color.black.opacity(0.1), lineWidth: 1)
+                    )
+                }
+                .buttonStyle(.plain)
+                .disabled(hfOAuth.isLoggingIn)
+                .opacity(hfOAuth.isLoggingIn ? 0.6 : 1.0)
             }
 
             if let error = hfOAuth.error {

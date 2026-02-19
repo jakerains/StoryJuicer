@@ -36,7 +36,6 @@ struct MacModelSettingsView: View {
 
                 sectionLabel("On-Device", systemImage: "desktopcomputer")
                 foundationModelSection
-                mlxModelSection
 
                 sectionLabel("Cloud Providers", systemImage: "cloud")
                 huggingFaceCallout
@@ -45,6 +44,9 @@ struct MacModelSettingsView: View {
                     settings: $settings,
                     modelCache: cloudModelCache
                 )
+
+                sectionLabel("Local Models", systemImage: "arrow.down.circle")
+                mlxModelSection
 
                 // OpenRouter and Together AI hidden for now
                 // moreProvidersLabel
