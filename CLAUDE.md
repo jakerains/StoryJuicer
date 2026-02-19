@@ -189,13 +189,15 @@ The script handles everything: version bump → `make dmg` → appcast generatio
 
 ### Every Commit That Changes App Behavior
 
-**IMPORTANT:** Any commit that adds features, fixes bugs, or changes user-facing behavior MUST include:
+**IMPORTANT:** Any commit that adds features, fixes bugs, or changes user-facing behavior MUST include these steps. Do NOT defer — do them all before considering the work "done."
 
 1. **Bump the patch version** in `project.yml` → `MARKETING_VERSION` (e.g., `1.1.0` → `1.1.1`) and increment `CURRENT_PROJECT_VERSION`
 2. **Update `landing/lib/changelog.ts`** — add or update the entry for the new version with a description of what changed (tagged as `added`, `fixed`, `changed`, or `removed`)
 3. **Update `softwareVersion`** in `landing/app/page.tsx` structured data to match the new version
+4. **Build and release the new version** — run `./scripts/release.sh <version>` to build the DMG, generate the appcast, create the GitHub release, and push. **Bumping the version in `project.yml` alone does NOT make it available to users.** The appcast only updates when a new DMG is built and `generate_appcast` runs against it. Without this step, Sparkle will say "no update available."
+5. **Deploy the landing page** — run `cd landing && vercel --prod` if the changelog or landing page content changed
 
-This keeps the changelog, landing page, and app binary in sync. Do NOT defer these — do them in the same commit as the feature/fix.
+**Why step 4 matters:** Sparkle compares the installed app's version against `appcast.xml` on GitHub. If you bump `project.yml` but don't rebuild the DMG and regenerate the appcast, the appcast still advertises the old version and users see "no update." The release script handles everything atomically.
 
 **Manual release steps** (if not using the script):
 1. Bump `MARKETING_VERSION` and `CURRENT_PROJECT_VERSION` in `project.yml` (macOS target only — iOS version is independent)
