@@ -12,6 +12,48 @@ export interface ChangelogEntry {
 
 export const changelog: ChangelogEntry[] = [
   {
+    version: "1.1.1",
+    date: "2026-02-19",
+    title: "Edit & Regenerate, StoryJuicer Stamp, Text Cleanup",
+    changes: [
+      {
+        type: "added",
+        description:
+          "Edit button in reader toolbar — edit author, page text, or moral directly from the reader",
+      },
+      {
+        type: "added",
+        description:
+          "Image regeneration with optional custom prompt — guide the AI to get the illustration you want",
+      },
+      {
+        type: "added",
+        description:
+          "StoryJuicer library stamp on 'The End' page — a fox-on-book ink stamp appears in the reader, PDF, and EPUB exports",
+      },
+      {
+        type: "fixed",
+        description:
+          "Text formatting cleanup — strips markdown bold/italic artifacts from cloud and MLX model outputs",
+      },
+      {
+        type: "fixed",
+        description:
+          "Squeeze a Story button now clickable across the entire pill area, not just the text",
+      },
+      {
+        type: "fixed",
+        description:
+          "Version numbering corrected — About screen and Sparkle updates now show the correct version",
+      },
+      {
+        type: "changed",
+        description:
+          "Auto-update checks enabled on launch — no longer requires manual 'Check for Updates' click",
+      },
+    ],
+  },
+  {
     version: "1.1.0",
     date: "2026-02-19",
     title: "EPUB Export, Changelog & Analytics",

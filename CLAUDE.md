@@ -187,6 +187,16 @@ Use the release script for the full automated pipeline:
 
 The script handles everything: version bump → `make dmg` → appcast generation → GitHub release → commit → push. Users on older versions are prompted automatically via Sparkle.
 
+### Every Commit That Changes App Behavior
+
+**IMPORTANT:** Any commit that adds features, fixes bugs, or changes user-facing behavior MUST include:
+
+1. **Bump the patch version** in `project.yml` → `MARKETING_VERSION` (e.g., `1.1.0` → `1.1.1`) and increment `CURRENT_PROJECT_VERSION`
+2. **Update `landing/lib/changelog.ts`** — add or update the entry for the new version with a description of what changed (tagged as `added`, `fixed`, `changed`, or `removed`)
+3. **Update `softwareVersion`** in `landing/app/page.tsx` structured data to match the new version
+
+This keeps the changelog, landing page, and app binary in sync. Do NOT defer these — do them in the same commit as the feature/fix.
+
 **Manual release steps** (if not using the script):
 1. Bump `MARKETING_VERSION` and `CURRENT_PROJECT_VERSION` in `project.yml` (macOS target only — iOS version is independent)
 2. `make dmg` — build, sign, notarize, package
