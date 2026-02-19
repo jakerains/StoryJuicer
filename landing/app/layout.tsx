@@ -18,7 +18,7 @@ const nunito = Nunito({
 });
 
 export const metadata: Metadata = {
-  metadataBase: new URL("https://landing-ten-blush-10.vercel.app"),
+  metadataBase: new URL("https://storyjuicer.vercel.app"),
   title: "StoryJuicer — AI-Powered Illustrated Children's Storybooks",
   description:
     "Type a story idea, pick a style, and get a fully illustrated children's book with text, cover art, and 300 DPI print-ready PDF export — all on your device.",
