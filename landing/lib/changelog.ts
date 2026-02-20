@@ -12,6 +12,23 @@ export interface ChangelogEntry {
 
 export const changelog: ChangelogEntry[] = [
   {
+    version: "1.3.1",
+    date: "2026-02-20",
+    title: "Improved Tap Targets",
+    changes: [
+      {
+        type: "fixed",
+        description:
+          "Quick/Guided mode buttons now respond to taps anywhere on the chip, not just the text",
+      },
+      {
+        type: "fixed",
+        description:
+          "Book Setup section can be expanded by clicking anywhere on the card, not just the label",
+      },
+    ],
+  },
+  {
     version: "1.3.0",
     date: "2026-02-20",
     title: "StoryFox Rebrand",
