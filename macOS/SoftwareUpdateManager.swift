@@ -47,12 +47,25 @@ final class SoftwareUpdateManager {
         if !updaterController.updater.automaticallyChecksForUpdates {
             updaterController.updater.automaticallyChecksForUpdates = true
         }
+
+        // Check immediately on launch (after a short delay so the window loads first).
+        // Sparkle's automatic schedule only fires every `updateCheckInterval` (default 24h),
+        // so without this a freshly-launched app may not discover a new version for hours.
+        Task { @MainActor [weak updaterController] in
+            try? await Task.sleep(for: .seconds(3))
+            updaterController?.updater.checkForUpdatesInBackground()
+        }
     }
 
     // MARK: - Actions
 
     func checkForUpdates() {
         updaterController.checkForUpdates(nil)
+    }
+
+    /// Silent background check — only shows UI if an update is available.
+    func checkInBackground() {
+        updaterController.updater.checkForUpdatesInBackground()
     }
 }
 

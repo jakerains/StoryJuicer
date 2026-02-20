@@ -29,7 +29,7 @@ export default function Page() {
             description:
               "AI-powered illustrated children's storybooks — on your device. Generate complete storybooks with text, illustrations, and print-ready PDF export.",
             author: { "@type": "Person", name: "Jake Rains" },
-            softwareVersion: "1.4.0",
+            softwareVersion: "1.4.1",
             downloadUrl:
               "https://github.com/jakerains/StoryFox/releases/latest/download/StoryFox.dmg",
           }),

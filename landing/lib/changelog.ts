@@ -12,6 +12,18 @@ export interface ChangelogEntry {
 
 export const changelog: ChangelogEntry[] = [
   {
+    version: "1.4.1",
+    date: "2026-02-20",
+    title: "Auto-Check for Updates on Launch",
+    changes: [
+      {
+        type: "fixed",
+        description:
+          "App now silently checks for updates 3 seconds after launch — no more waiting for the 24-hour Sparkle schedule or manually clicking 'Check for Updates'",
+      },
+    ],
+  },
+  {
     version: "1.4.0",
     date: "2026-02-20",
     title: "Redesigned Creation Screen",
