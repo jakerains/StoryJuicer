@@ -12,6 +12,28 @@ export interface ChangelogEntry {
 
 export const changelog: ChangelogEntry[] = [
   {
+    version: "1.3.2",
+    date: "2026-02-20",
+    title: "Expanded Cloud Model Selection",
+    changes: [
+      {
+        type: "added",
+        description:
+          "Hugging Face text model picker now features curated top models: GPT-OSS 120B (default), GPT-OSS 20B, Qwen3 32B, DeepSeek V3, Llama 3.1 8B, and Mistral 7B",
+      },
+      {
+        type: "added",
+        description:
+          "Hugging Face image model picker expanded with Z-Image Turbo, HunyuanImage 3.0, Stable Diffusion 3.5 Medium, and HiDream I1 Fast alongside FLUX.1 models",
+      },
+      {
+        type: "changed",
+        description:
+          "Default Hugging Face text model changed from Llama 4 Maverick to GPT-OSS 120B for better story generation quality",
+      },
+    ],
+  },
+  {
     version: "1.3.1",
     date: "2026-02-20",
     title: "Improved Tap Targets",

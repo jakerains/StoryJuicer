@@ -89,7 +89,7 @@ enum CloudProvider: String, CaseIterable, Codable, Sendable, Equatable, Identifi
         switch self {
         case .openRouter:  return "google/gemini-3-flash-preview"
         case .togetherAI:  return "meta-llama/Llama-4-Maverick-17B-128E-Instruct-Turbo"
-        case .huggingFace: return "meta-llama/Llama-4-Maverick-17B-128E-Instruct-FP8"
+        case .huggingFace: return "openai/gpt-oss-120b"
         }
     }
 

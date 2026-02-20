@@ -207,14 +207,26 @@ final class CloudModelListCache {
         return (text, image)
     }
 
-    /// Curated Black Forest Labs image models known to work well with HF Inference.
+    /// Curated text models for HuggingFace — always shown at the top of the picker.
+    static let curatedHFTextModels: [CloudModelInfo] = [
+        CloudModelInfo(id: "openai/gpt-oss-120b", displayName: "GPT-OSS 120B", provider: .huggingFace, modality: .text),
+        CloudModelInfo(id: "openai/gpt-oss-20b", displayName: "GPT-OSS 20B", provider: .huggingFace, modality: .text),
+        CloudModelInfo(id: "Qwen/Qwen3-32B", displayName: "Qwen3 32B", provider: .huggingFace, modality: .text),
+        CloudModelInfo(id: "deepseek-ai/DeepSeek-V3", displayName: "DeepSeek V3", provider: .huggingFace, modality: .text),
+        CloudModelInfo(id: "meta-llama/Llama-3.1-8B-Instruct", displayName: "Llama 3.1 8B Instruct", provider: .huggingFace, modality: .text),
+        CloudModelInfo(id: "mistralai/Mistral-7B-Instruct-v0.2", displayName: "Mistral 7B Instruct", provider: .huggingFace, modality: .text),
+    ]
+
+    /// Curated image models known to work well with HF Inference.
     static let curatedHFImageModels: [CloudModelInfo] = [
         CloudModelInfo(id: "black-forest-labs/FLUX.1-schnell", displayName: "FLUX.1 schnell", provider: .huggingFace, modality: .image),
         CloudModelInfo(id: "black-forest-labs/FLUX.1-dev", displayName: "FLUX.1 dev", provider: .huggingFace, modality: .image),
+        CloudModelInfo(id: "Tongyi-MAI/Z-Image-Turbo", displayName: "Z-Image Turbo", provider: .huggingFace, modality: .image),
+        CloudModelInfo(id: "tencent/HunyuanImage-3.0", displayName: "HunyuanImage 3.0", provider: .huggingFace, modality: .image),
+        CloudModelInfo(id: "stabilityai/stable-diffusion-3.5-medium", displayName: "Stable Diffusion 3.5 Medium", provider: .huggingFace, modality: .image),
+        CloudModelInfo(id: "HiDream-ai/HiDream-I1-Fast", displayName: "HiDream I1 Fast", provider: .huggingFace, modality: .image),
         CloudModelInfo(id: "black-forest-labs/FLUX.1-Canny-dev", displayName: "FLUX.1 Canny dev", provider: .huggingFace, modality: .image),
         CloudModelInfo(id: "black-forest-labs/FLUX.1-Depth-dev", displayName: "FLUX.1 Depth dev", provider: .huggingFace, modality: .image),
-        CloudModelInfo(id: "black-forest-labs/FLUX.1-Redux-dev", displayName: "FLUX.1 Redux dev", provider: .huggingFace, modality: .image),
-        CloudModelInfo(id: "black-forest-labs/FLUX.1-Fill-dev", displayName: "FLUX.1 Fill dev", provider: .huggingFace, modality: .image),
     ]
 
     /// Curated text models for OpenRouter — always shown at the top of the picker.
@@ -240,15 +252,19 @@ final class CloudModelListCache {
             return Self.curatedHFImageModels
         }
 
+        let curatedIDs = Set(Self.curatedHFTextModels.map(\.id))
+
         guard let models = try? JSONSerialization.jsonObject(with: data) as? [[String: Any]] else {
-            return []
+            return Self.curatedHFTextModels
         }
 
-        return models.compactMap { model -> CloudModelInfo? in
-            guard let id = model["id"] as? String else { return nil }
+        let dynamic = models.compactMap { model -> CloudModelInfo? in
+            guard let id = model["id"] as? String, !curatedIDs.contains(id) else { return nil }
             let name = (model["modelId"] as? String) ?? id
             return CloudModelInfo(id: id, displayName: name, provider: provider, modality: modality)
         }
+
+        return Self.curatedHFTextModels + dynamic
     }
 
     // MARK: - UserDefaults Persistence
@@ -267,7 +283,8 @@ final class CloudModelListCache {
     }
 
     private func loadFromDefaults() {
-        // Always seed HF image models with curated Black Forest Labs list
+        // Always seed HF models with curated lists
+        textModels[.huggingFace] = Self.curatedHFTextModels
         imageModels[.huggingFace] = Self.curatedHFImageModels
 
         // Always seed OpenRouter with curated models
@@ -295,15 +312,20 @@ final class CloudModelListCache {
 
                 textModels[provider] = Self.curatedOpenRouterTextModels + extraText
                 imageModels[provider] = Self.curatedOpenRouterImageModels + extraImage
+            } else if provider == .huggingFace {
+                // Merge cached text models after curated ones (avoid overwriting)
+                let curatedTextIDs = Set(Self.curatedHFTextModels.map(\.id))
+                let extraText = zip(dto.textModelIDs, dto.textModelNames).compactMap { id, name -> CloudModelInfo? in
+                    curatedTextIDs.contains(id) ? nil : CloudModelInfo(id: id, displayName: name, provider: provider, modality: .text)
+                }
+                textModels[provider] = Self.curatedHFTextModels + extraText
+                // Image models always use curated list (already set above)
             } else {
                 textModels[provider] = zip(dto.textModelIDs, dto.textModelNames).map {
                     CloudModelInfo(id: $0.0, displayName: $0.1, provider: provider, modality: .text)
                 }
-                // For HF image models, always use curated list (already set above)
-                if provider != .huggingFace || dto.imageModelIDs.isEmpty {
-                    imageModels[provider] = zip(dto.imageModelIDs, dto.imageModelNames).map {
-                        CloudModelInfo(id: $0.0, displayName: $0.1, provider: provider, modality: .image)
-                    }
+                imageModels[provider] = zip(dto.imageModelIDs, dto.imageModelNames).map {
+                    CloudModelInfo(id: $0.0, displayName: $0.1, provider: provider, modality: .image)
                 }
             }
         }
