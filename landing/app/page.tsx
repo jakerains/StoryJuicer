@@ -31,7 +31,7 @@ export default function Page() {
             author: { "@type": "Person", name: "Jake Rains" },
             softwareVersion: "1.3.1",
             downloadUrl:
-              "https://github.com/jakerains/StoryFox/releases/latest",
+              "https://github.com/jakerains/StoryFox/releases/latest/download/StoryFox.dmg",
           }),
         }}
       />

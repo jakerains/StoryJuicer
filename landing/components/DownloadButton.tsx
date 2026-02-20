@@ -4,7 +4,7 @@ import { useEffect, useState } from "react";
 import { track } from "@vercel/analytics";
 
 const DMG_URL =
-  "https://github.com/jakerains/StoryFox/releases/latest";
+  "https://github.com/jakerains/StoryFox/releases/latest/download/StoryFox.dmg";
 const GITHUB_URL = "https://github.com/jakerains/StoryFox";
 
 function AppleIcon({ className }: { className?: string }) {

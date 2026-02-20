@@ -16,8 +16,8 @@
 </p>
 
 <p align="center">
-  <a href="https://github.com/jakerains/StoryFox/releases/latest">
-    <img src="https://img.shields.io/badge/%E2%AC%87%EF%B8%8F_Download_for_Mac-Latest_Release-D4654A?style=for-the-badge&logo=apple&logoColor=white" alt="Download for Mac" />
+  <a href="https://github.com/jakerains/StoryFox/releases/latest/download/StoryFox.dmg">
+    <img src="https://img.shields.io/badge/%E2%AC%87%EF%B8%8F_Download_for_Mac-StoryFox.dmg-D4654A?style=for-the-badge&logo=apple&logoColor=white" alt="Download for Mac" />
   </a>
 </p>
 <p align="center">

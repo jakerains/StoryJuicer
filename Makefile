@@ -101,8 +101,6 @@ TEAM_ID       := 47347VQHQV
 NOTARY_PROFILE := StoryFox-Notarize
 DMG_DIR       := dist
 APP_NAME      := StoryFox
-VERSION       := $(shell grep -m1 'MARKETING_VERSION:' project.yml | sed 's/.*"\([^"]*\)".*/\1/')
-DMG_NAME      := $(APP_NAME)-$(VERSION).dmg
 
 dmg:
 	@echo "──── 1/7  Preparing output directory ────"
@@ -153,19 +151,19 @@ dmg:
 	xcrun stapler staple "$(DMG_DIR)/export/$(APP_NAME).app"
 	@echo ""
 	@echo "──── 7/7  Creating DMG with drag-to-Applications ────"
-	@rm -f "$(DMG_DIR)/$(DMG_NAME)"
+	@rm -f "$(DMG_DIR)/$(APP_NAME).dmg"
 	@rm -rf /tmp/storyfox_dmg_staging
 	@mkdir -p /tmp/storyfox_dmg_staging
 	@cp -R "$(DMG_DIR)/export/$(APP_NAME).app" /tmp/storyfox_dmg_staging/
 	@ln -s /Applications /tmp/storyfox_dmg_staging/Applications
-	hdiutil create -volname "$(APP_NAME)" -srcfolder /tmp/storyfox_dmg_staging -ov -format UDZO "$(DMG_DIR)/$(DMG_NAME)"
+	hdiutil create -volname "$(APP_NAME)" -srcfolder /tmp/storyfox_dmg_staging -ov -format UDZO "$(DMG_DIR)/$(APP_NAME).dmg"
 	@rm -rf /tmp/storyfox_dmg_staging
-	xcrun notarytool submit "$(DMG_DIR)/$(DMG_NAME)" \
+	xcrun notarytool submit "$(DMG_DIR)/$(APP_NAME).dmg" \
 		--keychain-profile "$(NOTARY_PROFILE)" \
 		--wait
-	xcrun stapler staple "$(DMG_DIR)/$(DMG_NAME)"
+	xcrun stapler staple "$(DMG_DIR)/$(APP_NAME).dmg"
 	@echo ""
-	@echo "✅ Done! Distributable DMG: $(DMG_DIR)/$(DMG_NAME)"
+	@echo "✅ Done! Distributable DMG: $(DMG_DIR)/$(APP_NAME).dmg"
 	@rm -f "$(DMG_DIR)/$(APP_NAME).zip" "$(DMG_DIR)/ExportOptions.plist"
 
 # ── Sparkle Auto-Update Tooling ─────────────────────────────────────

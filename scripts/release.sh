@@ -72,8 +72,6 @@ echo ""
 
 # ── Step 2: Build DMG ───────────────────────────────────────────────
 
-DMG_NAME="StoryFox-${VERSION}.dmg"
-
 echo "──── 2/6  Building signed & notarized DMG ────"
 echo "    (This takes several minutes)"
 echo ""
@@ -98,8 +96,8 @@ fi
 # Verify signature was added
 if ! grep -q 'sparkle:edSignature' appcast.xml; then
     echo "Warning: EdDSA signature missing from appcast. Adding manually..."
-    SIGNATURE=$("${SPARKLE_BIN_DIR}/sign_update" "dist/${DMG_NAME}" | grep -o 'sparkle:edSignature="[^"]*"')
-    sed -i '' "s|url=\"https://github.com/jakerains/StoryFox/releases/download/v${VERSION}/${DMG_NAME}\"|url=\"https://github.com/jakerains/StoryFox/releases/download/v${VERSION}/${DMG_NAME}\" ${SIGNATURE}|" appcast.xml
+    SIGNATURE=$("${SPARKLE_BIN_DIR}/sign_update" dist/StoryFox.dmg | grep -o 'sparkle:edSignature="[^"]*"')
+    sed -i '' "s|url=\"https://github.com/jakerains/StoryFox/releases/download/v${VERSION}/StoryFox.dmg\"|url=\"https://github.com/jakerains/StoryFox/releases/download/v${VERSION}/StoryFox.dmg\" ${SIGNATURE}|" appcast.xml
 fi
 
 echo "    Appcast updated with v${VERSION} entry"
@@ -114,7 +112,7 @@ DEFAULT_NOTES="## StoryFox v${VERSION}
 Download the DMG, mount it, and drag StoryFox to Applications.
 Existing users will be prompted to update automatically."
 
-gh release create "v${VERSION}" "dist/${DMG_NAME}" \
+gh release create "v${VERSION}" dist/StoryFox.dmg \
     --title "StoryFox v${VERSION}" \
     --notes "${NOTES:-$DEFAULT_NOTES}"
 
@@ -141,7 +139,7 @@ echo ""
 echo "═══════════════════════════════════════════════════════"
 echo "  ✅ Release v${VERSION} complete!"
 echo ""
-echo "  DMG:     dist/${DMG_NAME}"
+echo "  DMG:     dist/StoryFox.dmg"
 echo "  Release: https://github.com/jakerains/StoryFox/releases/tag/v${VERSION}"
 echo "  Appcast: https://raw.githubusercontent.com/jakerains/StoryFox/main/appcast.xml"
 echo ""
