@@ -9,6 +9,7 @@
 </p>
 
 <p align="center">
+  <img src="https://img.shields.io/badge/version-1.3.0-D4654A" alt="Version" />
   <img src="https://img.shields.io/badge/platform-macOS%2026%20%7C%20iOS%2026-blue" alt="Platform" />
   <img src="https://img.shields.io/badge/swift-6.2-F05138" alt="Swift" />
   <img src="https://img.shields.io/badge/Apple%20Intelligence-required-black?logo=apple" alt="Apple Intelligence" />

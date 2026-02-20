@@ -12,6 +12,28 @@ export interface ChangelogEntry {
 
 export const changelog: ChangelogEntry[] = [
   {
+    version: "1.3.0",
+    date: "2026-02-20",
+    title: "StoryFox Rebrand",
+    changes: [
+      {
+        type: "changed",
+        description:
+          "StoryJuicer is now StoryFox — new name, new domain (storyfox.app), same great storybook experience",
+      },
+      {
+        type: "changed",
+        description:
+          "Updated stamp image with StoryFox branding on every exported book",
+      },
+      {
+        type: "changed",
+        description:
+          "New HuggingFace OAuth integration for seamless cloud AI sign-in",
+      },
+    ],
+  },
+  {
     version: "1.2.5",
     date: "2026-02-20",
     title: "Sidebar Favorites, OpenRouter, Collapsible Sections & Landing Polish",
