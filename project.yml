@@ -47,8 +47,8 @@ targets:
         PRODUCT_BUNDLE_IDENTIFIER: com.jakerains.StoryJuicer
         PRODUCT_NAME: StoryJuicer
         INFOPLIST_GENERATION_MODE: GeneratedFile
-        MARKETING_VERSION: "1.2.3"
-        CURRENT_PROJECT_VERSION: "9"
+        MARKETING_VERSION: "1.2.4"
+        CURRENT_PROJECT_VERSION: "10"
         CODE_SIGN_ENTITLEMENTS: Resources/StoryJuicer.entitlements
         GENERATE_INFOPLIST_FILE: "YES"
         INFOPLIST_FILE: Resources/StoryJuicer-Info.plist

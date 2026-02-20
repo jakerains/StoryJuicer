@@ -174,6 +174,59 @@ struct ModelSelectionSettings: Codable, Sendable, Equatable {
         huggingFaceImageModelID: CloudProvider.huggingFace.defaultImageModelID
     )
 
+    /// Human-readable name for the active text model (e.g., "FLUX.1-schnell" not "black-forest-labs/FLUX.1-schnell").
+    var resolvedTextModelLabel: String {
+        switch textProvider {
+        case .appleFoundation:
+            return "Apple Foundation"
+        case .mlxSwift:
+            if let curated = Self.curatedMLXModels.first(where: { $0.id == mlxModelID }) {
+                return curated.displayName
+            }
+            return Self.shortModelName(mlxModelID)
+        case .huggingFace:
+            let id = huggingFaceTextModelID.trimmingCharacters(in: .whitespacesAndNewlines)
+            return id.isEmpty ? "Hugging Face" : Self.shortModelName(id)
+        case .openRouter:
+            let id = openRouterTextModelID.trimmingCharacters(in: .whitespacesAndNewlines)
+            return id.isEmpty ? "OpenRouter" : Self.shortModelName(id)
+        case .togetherAI:
+            let id = togetherTextModelID.trimmingCharacters(in: .whitespacesAndNewlines)
+            return id.isEmpty ? "Together AI" : Self.shortModelName(id)
+        }
+    }
+
+    /// Human-readable name for the active image model.
+    var resolvedImageModelLabel: String {
+        switch imageProvider {
+        case .imagePlayground:
+            return "Image Playground"
+        case .diffusers:
+            if let curated = Self.curatedDiffusersImageModels.first(where: { $0.id == diffusersModelID }) {
+                return curated.displayName
+            }
+            return Self.shortModelName(diffusersModelID)
+        case .huggingFace:
+            let id = huggingFaceImageModelID.trimmingCharacters(in: .whitespacesAndNewlines)
+            return id.isEmpty ? "Hugging Face" : Self.shortModelName(id)
+        case .openRouter:
+            let id = openRouterImageModelID.trimmingCharacters(in: .whitespacesAndNewlines)
+            return id.isEmpty ? "OpenRouter" : Self.shortModelName(id)
+        case .togetherAI:
+            let id = togetherImageModelID.trimmingCharacters(in: .whitespacesAndNewlines)
+            return id.isEmpty ? "Together AI" : Self.shortModelName(id)
+        }
+    }
+
+    /// Strips the org prefix from a model ID: "black-forest-labs/FLUX.1-schnell" → "FLUX.1-schnell".
+    private static func shortModelName(_ fullID: String) -> String {
+        if let slashIndex = fullID.lastIndex(of: "/") {
+            let afterSlash = fullID[fullID.index(after: slashIndex)...]
+            return afterSlash.isEmpty ? fullID : String(afterSlash)
+        }
+        return fullID
+    }
+
     var resolvedHFTokenAlias: String {
         let alias = hfTokenKeychainRef?.trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
         return alias.isEmpty ? HFTokenStore.defaultAlias : alias

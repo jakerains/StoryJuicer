@@ -70,6 +70,15 @@ struct IOSGenerationProgressView: View {
         ModelSelectionStore.load()
     }
 
+    /// Reflects the actual image provider in use, including fallbacks.
+    private var activeImageModelLabel: String {
+        if let actual = viewModel.illustrationGenerator.activeImageProvider,
+           actual != currentSettings.imageProvider {
+            return actual.displayName
+        }
+        return currentSettings.resolvedImageModelLabel
+    }
+
     @ViewBuilder
     private var phaseIndicator: some View {
         switch viewModel.phase {
@@ -84,7 +93,7 @@ struct IOSGenerationProgressView: View {
                         .font(StoryJuicerTypography.uiTitle)
                         .foregroundStyle(Color.sjGlassInk)
 
-                    providerBadge(currentSettings.textProvider.displayName)
+                    providerBadge(currentSettings.resolvedTextModelLabel)
                 }
 
                 Text(textProviderDescription)
@@ -102,7 +111,7 @@ struct IOSGenerationProgressView: View {
                         .font(StoryJuicerTypography.uiTitle)
                         .foregroundStyle(Color.sjGlassInk)
 
-                    providerBadge(currentSettings.imageProvider.displayName)
+                    providerBadge(activeImageModelLabel)
                 }
 
                 Text("Illustrating page \(completed) of \(total)")

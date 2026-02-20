@@ -35,6 +35,8 @@ final class IllustrationGenerator {
     private(set) var state: IllustrationGenerationState = .idle
     private(set) var generatedImages: [Int: CGImage] = [:]
     private(set) var lastStatusMessage: String?
+    /// Tracks the actual provider used for the most recent image (reflects fallbacks).
+    private(set) var activeImageProvider: StoryImageProvider?
     private var variantSuccessCounts: [String: Int] = [:]
 
     init(router: ImageGenerationRouter = ImageGenerationRouter()) {
@@ -51,6 +53,7 @@ final class IllustrationGenerator {
     ) async throws {
         generatedImages = [:]
         lastStatusMessage = nil
+        activeImageProvider = nil
         variantSuccessCounts = [:]
         let totalCount = pages.count + 1 // +1 for cover
         state = .generating(currentPage: 0, completedCount: 0, totalCount: totalCount)
@@ -223,6 +226,7 @@ final class IllustrationGenerator {
                     let secs = Double(elapsed.components.seconds) + Double(elapsed.components.attoseconds) / 1e18
                     Self.logger.info("Image succeeded: variant=\(label, privacy: .public) attempt=\(attempt) duration=\(String(format: "%.1f", secs))s")
                     let actualProvider = outcome.providerUsed
+                    self.activeImageProvider = actualProvider
                     await GenerationDiagnosticsLogger.shared.logImageSuccess(
                         provider: actualProvider,
                         prompt: prompt,

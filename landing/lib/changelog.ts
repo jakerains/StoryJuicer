@@ -12,6 +12,18 @@ export interface ChangelogEntry {
 
 export const changelog: ChangelogEntry[] = [
   {
+    version: "1.2.4",
+    date: "2026-02-19",
+    title: "Show Active Model in Progress View",
+    changes: [
+      {
+        type: "changed",
+        description:
+          "Generation progress now shows the actual model name (e.g., 'FLUX.1-schnell') instead of just the provider name, and reflects fallbacks in real time",
+      },
+    ],
+  },
+  {
     version: "1.2.3",
     date: "2026-02-19",
     title: "Dynamic Q&A Flow & Keyboard Navigation",
