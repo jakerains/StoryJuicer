@@ -14,6 +14,7 @@ struct MacBookReaderView: View {
     @Bindable var viewModel: BookReaderViewModel
     let onExportPDF: () -> Void
     let onExportEPUB: () -> Void
+    let onExportPageImage: () -> Void
     let onBackToHome: () -> Void
 
     @State private var activeSheet: ReaderSheet?
@@ -66,6 +67,14 @@ struct MacBookReaderView: View {
                         onExportEPUB()
                     } label: {
                         Label("Export as EPUB", systemImage: "book")
+                    }
+
+                    Divider()
+
+                    Button {
+                        onExportPageImage()
+                    } label: {
+                        Label("Export Current Page as Image", systemImage: "photo")
                     }
                 } label: {
                     Label("Export", systemImage: "square.and.arrow.up")

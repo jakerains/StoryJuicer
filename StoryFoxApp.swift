@@ -157,6 +157,7 @@ struct MainView: View {
     @State private var readerViewModel: BookReaderViewModel?
     @State private var pdfRenderer = StoryPDFRenderer()
     @State private var epubRenderer = StoryEPUBRenderer()
+    @State private var pageImageRenderer = PageImageRenderer()
     @State private var selectedSavedBookID: UUID?
     @AppStorage("sidebar.favoritesExpanded") private var isFavoritesExpanded = true
     @AppStorage("sidebar.storybooksExpanded") private var isStorybooksExpanded = true
@@ -593,6 +594,15 @@ struct MainView: View {
                     images: readerVM.images,
                     format: readerVM.format,
                     renderer: epubRenderer
+                )
+            },
+            onExportPageImage: {
+                MacExportView.exportPageImage(
+                    pageIndex: readerVM.currentPage,
+                    storybook: readerVM.storyBook,
+                    images: readerVM.images,
+                    format: readerVM.format,
+                    renderer: pageImageRenderer
                 )
             },
             onBackToHome: {

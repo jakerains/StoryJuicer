@@ -181,6 +181,14 @@ Error messages use `.textSelection(.enabled)` so users can copy them.
 - Each image takes ~15-30 seconds on-device
 - Three styles: `.illustration`, `.animation`, `.sketch` — mapped via `IllustrationStyle.playgroundStyle`
 
+## Custom Skills
+
+### `storyfox-release` (Release Skill)
+
+The canonical source for the release skill lives at **`.agents/skills/storyfox-release/SKILL.md`**. The `.claude/skills/storyfox-release` directory is a **symlink** pointing to it. When updating the release skill, edit the file in `.agents/skills/` — the symlink ensures Claude Code picks it up automatically.
+
+Invoke with `/storyfox-release`. Contains the full 7-phase release pipeline, all gotchas, and recovery procedures.
+
 ## Distribution
 
 ### Releasing a New Version

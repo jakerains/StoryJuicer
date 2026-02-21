@@ -76,6 +76,7 @@
 		5F59EAAC23312209E332030A /* StoryDecoding.swift in Sources */ = {isa = PBXBuildFile; fileRef = 88B9FD6BD9B2178C49CEABD2 /* StoryDecoding.swift */; };
 		60CD8B8ED7235F5DB09DD0C0 /* GenerationProviderTypes.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8FC4ADB084A4C233F3CA3B1F /* GenerationProviderTypes.swift */; };
 		62F55F0AD89D6069DAB16159 /* ZIPBuilder.swift in Sources */ = {isa = PBXBuildFile; fileRef = 4F54E3095631596FDD0378B7 /* ZIPBuilder.swift */; };
+		64DAD9358BFEF7DBCCD539CE /* PageImageRenderer.swift in Sources */ = {isa = PBXBuildFile; fileRef = E02D95AEEED03CD5B15B9E17 /* PageImageRenderer.swift */; };
 		67134607CB7774D0001B893F /* CloudProviderSettingsSection.swift in Sources */ = {isa = PBXBuildFile; fileRef = 51707F43C237ED155D6917F9 /* CloudProviderSettingsSection.swift */; };
 		67A9829AF0C9246C87F6362F /* IllustrationGenerator.swift in Sources */ = {isa = PBXBuildFile; fileRef = 86CF76180F3DD78A2B946383 /* IllustrationGenerator.swift */; };
 		68D1C0BC48BCDCEE1DFB986D /* StoryQAPromptTemplates.swift in Sources */ = {isa = PBXBuildFile; fileRef = 91F55723DF69E0C49B5AAFCC /* StoryQAPromptTemplates.swift */; };
@@ -121,6 +122,7 @@
 		A0823C6A84A70FCE01893CE2 /* RemoteStoryGenerator.swift in Sources */ = {isa = PBXBuildFile; fileRef = 049E2F347E23FB900283D775 /* RemoteStoryGenerator.swift */; };
 		A1C75E651DAB113AD3793C94 /* CloudImageGenerator.swift in Sources */ = {isa = PBXBuildFile; fileRef = 417624B2B032CF3FA26F7ED5 /* CloudImageGenerator.swift */; };
 		A38A25969D2B322189C207D1 /* PaperTextureOverlay.swift in Sources */ = {isa = PBXBuildFile; fileRef = BED3C794DEB91FED9BEE6189 /* PaperTextureOverlay.swift */; };
+		A55B98F44349FA7E45DC5068 /* PageImageRenderer.swift in Sources */ = {isa = PBXBuildFile; fileRef = E02D95AEEED03CD5B15B9E17 /* PageImageRenderer.swift */; };
 		A5909308F52C453E82EC362C /* MLXLMCommon in Frameworks */ = {isa = PBXBuildFile; productRef = CB56905C979221F2A76D2496 /* MLXLMCommon */; };
 		A59DA0DDEA9F39E856E529D3 /* FormatPreviewCard.swift in Sources */ = {isa = PBXBuildFile; fileRef = 66648B664AC77481989CD3F5 /* FormatPreviewCard.swift */; };
 		A629F10B2A1C0567367E7A94 /* StoryJuicerMotion.swift in Sources */ = {isa = PBXBuildFile; fileRef = DDDC86776CF9946190CC7A70 /* StoryJuicerMotion.swift */; };
@@ -281,6 +283,7 @@
 		D7D042474E0F78738D3CB66A /* ShortcutStoryRequest.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ShortcutStoryRequest.swift; sourceTree = "<group>"; };
 		D968E428DCB03D6E685B300D /* StoryPDFRenderer.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = StoryPDFRenderer.swift; sourceTree = "<group>"; };
 		DDDC86776CF9946190CC7A70 /* StoryJuicerMotion.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = StoryJuicerMotion.swift; sourceTree = "<group>"; };
+		E02D95AEEED03CD5B15B9E17 /* PageImageRenderer.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PageImageRenderer.swift; sourceTree = "<group>"; };
 		E05B419486C78A41275EABDD /* CloudProviderLoginButton.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CloudProviderLoginButton.swift; sourceTree = "<group>"; };
 		E1D9E5531F937CE56ADB0198 /* CharacterDescriptionValidator.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CharacterDescriptionValidator.swift; sourceTree = "<group>"; };
 		E4AC2D8DD138CAE566DE7C2A /* StoryImageGenerating.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = StoryImageGenerating.swift; sourceTree = "<group>"; };
@@ -335,6 +338,7 @@
 				D260737C3E0ADED961E1D928 /* ImagePromptEnricher.swift */,
 				A989A272CF8EF85C157AF9DC /* MLXStoryGenerator.swift */,
 				3C2A0E5A140FC8AE89B47F5D /* OpenAICompatibleClient.swift */,
+				E02D95AEEED03CD5B15B9E17 /* PageImageRenderer.swift */,
 				D034CD483BD2374E56774339 /* PDFRendering.swift */,
 				C626CEFD9E043CBC9574812C /* PromptAnalysisEngine.swift */,
 				049E2F347E23FB900283D775 /* RemoteStoryGenerator.swift */,
@@ -693,6 +697,7 @@
 				7FB985E5224F04DE2F9AA7C5 /* OpenAICompatibleClient.swift in Sources */,
 				ADDBF0E9C7A9976E6D697840 /* PDFRendering.swift in Sources */,
 				FDE549A5D5FA215555B1C573 /* PageEditSheet.swift in Sources */,
+				64DAD9358BFEF7DBCCD539CE /* PageImageRenderer.swift in Sources */,
 				C6A9D3AB85C625CF91419931 /* PageOverviewGrid.swift in Sources */,
 				F309B2020FA4A5B9FF306BFC /* PageThumbnail.swift in Sources */,
 				272BD3592583BD21CC265C11 /* PageTurnEffect.swift in Sources */,
@@ -785,6 +790,7 @@
 				ED0B304553A81731C7845467 /* PDFRenderer+macOS.swift in Sources */,
 				B916359B070BFF0CA294265F /* PDFRendering.swift in Sources */,
 				699D5E1DDA2D90F4FF887108 /* PageEditSheet.swift in Sources */,
+				A55B98F44349FA7E45DC5068 /* PageImageRenderer.swift in Sources */,
 				530D119C746E37BF9E9F9161 /* PageOverviewGrid.swift in Sources */,
 				D7D4D98EC11E002EEBAECFDF /* PageThumbnail.swift in Sources */,
 				ED9F8499DDEEC1B942365629 /* PageTurnEffect.swift in Sources */,
