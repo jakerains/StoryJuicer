@@ -6,8 +6,11 @@ set -euo pipefail
 #   1. Bump version in project.yml
 #   2. Build, sign, notarize, and package DMG
 #   3. Generate appcast with EdDSA signatures
-#   4. Create GitHub release with DMG
-#   5. Commit and push appcast + version changes
+#   4. Generate release notes HTML from --notes
+#   5. Inject release notes into appcast.xml
+#   6. Create GitHub release with DMG
+#   7. Commit version bump, appcast, and release notes
+#   8. Push to origin/main
 #
 # Usage:
 #   ./scripts/release.sh <version> [--notes "Release notes"]
@@ -57,7 +60,7 @@ echo ""
 
 # ── Step 1: Bump version ────────────────────────────────────────────
 
-echo "──── 1/6  Bumping version to ${VERSION} ────"
+echo "──── 1/8  Bumping version to ${VERSION} ────"
 
 # Read current build number from project.yml, increment it
 CURRENT_BUILD=$(grep -m1 'CURRENT_PROJECT_VERSION:' project.yml | sed 's/.*"\([0-9]*\)".*/\1/')
@@ -82,7 +85,7 @@ echo ""
 
 # ── Step 2: Build DMG ───────────────────────────────────────────────
 
-echo "──── 2/6  Building signed & notarized DMG ────"
+echo "──── 2/8  Building signed & notarized DMG ────"
 echo "    (This takes several minutes)"
 echo ""
 make dmg
@@ -90,7 +93,7 @@ echo ""
 
 # ── Step 3: Sign and generate appcast ───────────────────────────────
 
-echo "──── 3/6  Generating appcast with EdDSA signatures ────"
+echo "──── 3/8  Generating appcast with EdDSA signatures ────"
 
 SPARKLE_BIN_DIR=$(find ~/Library/Developer/Xcode/DerivedData -path "*/Sparkle/bin" -type d 2>/dev/null | head -1)
 if [[ -z "$SPARKLE_BIN_DIR" ]]; then
@@ -113,9 +116,50 @@ fi
 echo "    Appcast updated with v${VERSION} entry"
 echo ""
 
-# ── Step 4: Create GitHub release ───────────────────────────────────
+# ── Step 4: Release notes HTML ───────────────────────────────────────
 
-echo "──── 4/6  Creating GitHub release v${VERSION} ────"
+echo "──── 4/8  Checking release notes HTML ────"
+
+NOTES_DIR="release-notes"
+mkdir -p "$NOTES_DIR"
+
+if [[ -f "${NOTES_DIR}/${VERSION}.html" ]]; then
+    # Pre-created by the agent from changelog — use it as-is
+    echo "    Using existing ${NOTES_DIR}/${VERSION}.html"
+elif [[ -n "$NOTES" ]]; then
+    # Build HTML from --notes text: split on semicolons into bullet points
+    NOTES_HTML="<h2>Version ${VERSION}</h2>\n<ul>"
+    IFS=';' read -ra NOTE_ITEMS <<< "$NOTES"
+    for item in "${NOTE_ITEMS[@]}"; do
+        trimmed=$(echo "$item" | xargs)
+        [[ -n "$trimmed" ]] && NOTES_HTML="${NOTES_HTML}\n  <li>${trimmed}</li>"
+    done
+    NOTES_HTML="${NOTES_HTML}\n</ul>"
+    printf "%b\n" "$NOTES_HTML" > "${NOTES_DIR}/${VERSION}.html"
+    echo "    Created ${NOTES_DIR}/${VERSION}.html from --notes"
+else
+    # Default release notes when nothing else is available
+    cat > "${NOTES_DIR}/${VERSION}.html" <<HTMLEOF
+<h2>Version ${VERSION}</h2>
+<ul>
+  <li>Bug fixes and improvements</li>
+</ul>
+HTMLEOF
+    echo "    Created ${NOTES_DIR}/${VERSION}.html (default placeholder)"
+fi
+echo ""
+
+# ── Step 5: Inject release notes into appcast ────────────────────────
+
+echo "──── 5/8  Injecting release notes into appcast.xml ────"
+
+SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
+"${SCRIPT_DIR}/inject-release-notes.sh"
+echo ""
+
+# ── Step 6: Create GitHub release ───────────────────────────────────
+
+echo "──── 6/8  Creating GitHub release v${VERSION} ────"
 
 DEFAULT_NOTES="## StoryFox v${VERSION}
 
@@ -128,21 +172,21 @@ gh release create "v${VERSION}" dist/StoryFox.dmg \
 
 echo ""
 
-# ── Step 5: Commit version + appcast ────────────────────────────────
+# ── Step 7: Commit version + appcast ────────────────────────────────
 
-echo "──── 5/6  Committing version bump and appcast ────"
+echo "──── 7/8  Committing version bump and appcast ────"
 
-git add project.yml appcast.xml StoryFox.xcodeproj/project.pbxproj
+git add project.yml appcast.xml StoryFox.xcodeproj/project.pbxproj release-notes/
 git commit -m "Release v${VERSION}
 
 - Bump to ${VERSION} (build ${NEW_BUILD})
-- Update appcast with signed DMG entry"
+- Update appcast with signed DMG entry and release notes"
 
 echo ""
 
-# ── Step 6: Push ────────────────────────────────────────────────────
+# ── Step 8: Push ────────────────────────────────────────────────────
 
-echo "──── 6/6  Pushing to origin/main ────"
+echo "──── 8/8  Pushing to origin/main ────"
 git push origin main
 
 echo ""

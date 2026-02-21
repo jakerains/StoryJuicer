@@ -22,6 +22,10 @@ final class StoredStorybook {
     var displayOrder: Int = 0
     var characterDescriptions: String = ""
     var originalConcept: String = ""
+    var textProviderRawValue: String = ""
+    var imageProviderRawValue: String = ""
+    var textModelName: String = ""
+    var imageModelName: String = ""
 
     @Relationship(deleteRule: .cascade)
     var pages: [StoredPage]
@@ -32,6 +36,10 @@ final class StoredStorybook {
         moral: String,
         characterDescriptions: String = "",
         originalConcept: String = "",
+        textProviderRawValue: String = "",
+        imageProviderRawValue: String = "",
+        textModelName: String = "",
+        imageModelName: String = "",
         format: BookFormat,
         style: IllustrationStyle,
         coverImageData: Data? = nil,
@@ -45,6 +53,10 @@ final class StoredStorybook {
         self.moral = moral
         self.characterDescriptions = characterDescriptions
         self.originalConcept = originalConcept
+        self.textProviderRawValue = textProviderRawValue
+        self.imageProviderRawValue = imageProviderRawValue
+        self.textModelName = textModelName
+        self.imageModelName = imageModelName
         self.createdAt = Date()
         self.formatRawValue = format.rawValue
         self.styleRawValue = style.rawValue
@@ -88,7 +100,11 @@ extension StoredStorybook {
         images: [Int: CGImage],
         format: BookFormat,
         style: IllustrationStyle,
-        concept: String = ""
+        concept: String = "",
+        textProvider: String = "",
+        imageProvider: String = "",
+        textModelName: String = "",
+        imageModelName: String = ""
     ) -> StoredStorybook {
         let coverData = images[0].flatMap { cgImageToPNGData($0) }
 
@@ -108,6 +124,10 @@ extension StoredStorybook {
             moral: storyBook.moral,
             characterDescriptions: storyBook.characterDescriptions,
             originalConcept: concept,
+            textProviderRawValue: textProvider,
+            imageProviderRawValue: imageProvider,
+            textModelName: textModelName,
+            imageModelName: imageModelName,
             format: format,
             style: style,
             coverImageData: coverData,

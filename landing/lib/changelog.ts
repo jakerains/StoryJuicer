@@ -12,6 +12,33 @@ export interface ChangelogEntry {
 
 export const changelog: ChangelogEntry[] = [
   {
+    version: "1.7.5",
+    date: "2026-02-21",
+    title: "Story Info & Release Notes",
+    changes: [
+      {
+        type: "added",
+        description:
+          "Story Info sheet now shows which AI providers and models generated your story — see the text and image engines used at a glance",
+      },
+      {
+        type: "added",
+        description:
+          "Story Info sheet shows the image prompt for the current page, so you can see exactly what the AI was asked to illustrate",
+      },
+      {
+        type: "added",
+        description:
+          "Provider and model names are now saved with each storybook and persist when reopening from the library",
+      },
+      {
+        type: "added",
+        description:
+          "Sparkle update dialog now shows \"What's New\" release notes — users see what changed before updating",
+      },
+    ],
+  },
+  {
     version: "1.7.4",
     date: "2026-02-21",
     title: "Author Mode",

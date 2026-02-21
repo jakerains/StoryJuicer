@@ -5,7 +5,21 @@ struct StoryInfoSheet: View {
     let originalConcept: String
     let format: BookFormat
     let illustrationStyle: IllustrationStyle
+    let currentPageIndex: Int
+    let textProviderName: String
+    let imageProviderName: String
+    let textModelName: String
+    let imageModelName: String
     var dismiss: () -> Void
+
+    /// The story page for the current position, if it's a content page (not title or end).
+    private var currentStoryPage: StoryPage? {
+        let totalPages = storyBook.pages.count + 2
+        guard currentPageIndex > 0, currentPageIndex < totalPages - 1 else { return nil }
+        let pageIndex = currentPageIndex - 1
+        guard pageIndex >= 0, pageIndex < storyBook.pages.count else { return nil }
+        return storyBook.pages[pageIndex]
+    }
 
     var body: some View {
         VStack(spacing: 0) {
@@ -17,6 +31,15 @@ struct StoryInfoSheet: View {
 
             ScrollView {
                 VStack(alignment: .leading, spacing: StoryJuicerGlassTokens.Spacing.large) {
+                    // Current page image prompt (contextual — only on content pages)
+                    if let page = currentStoryPage {
+                        infoSection(
+                            title: "Page \(page.pageNumber) Image Prompt",
+                            icon: "paintbrush",
+                            body: page.imagePrompt
+                        )
+                    }
+
                     infoSection(
                         title: "Original Prompt",
                         icon: "text.quote",
@@ -50,6 +73,11 @@ struct StoryInfoSheet: View {
                         icon: "book.pages",
                         value: "\(storyBook.pages.count) story pages"
                     )
+
+                    // Generation info
+                    if !textProviderName.isEmpty || !imageProviderName.isEmpty {
+                        generationSection
+                    }
                 }
                 .padding(StoryJuicerGlassTokens.Spacing.large)
             }
@@ -82,6 +110,61 @@ struct StoryInfoSheet: View {
                     .labelStyle(.iconOnly)
             }
             .sjGlassToolbarItem(prominent: false)
+        }
+    }
+
+    // MARK: - Generation Info
+
+    private var generationSection: some View {
+        VStack(alignment: .leading, spacing: StoryJuicerGlassTokens.Spacing.xSmall) {
+            Label("Generation", systemImage: "cpu")
+                .font(StoryJuicerTypography.uiBodyStrong)
+                .foregroundStyle(Color.sjGlassInk)
+
+            VStack(alignment: .leading, spacing: 6) {
+                if !textProviderName.isEmpty {
+                    generationRow(
+                        label: "Text",
+                        provider: textProviderName,
+                        model: textModelName
+                    )
+                }
+
+                if !imageProviderName.isEmpty {
+                    generationRow(
+                        label: "Images",
+                        provider: imageProviderName,
+                        model: imageModelName
+                    )
+                }
+            }
+        }
+        .padding(StoryJuicerGlassTokens.Spacing.medium)
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .sjGlassCard(
+            tint: .sjGlassSoft.opacity(StoryJuicerGlassTokens.Tint.subtle),
+            cornerRadius: StoryJuicerGlassTokens.Radius.chip
+        )
+    }
+
+    private func generationRow(label: String, provider: String, model: String) -> some View {
+        HStack(alignment: .firstTextBaseline, spacing: 4) {
+            Text(label)
+                .font(StoryJuicerTypography.uiMeta)
+                .foregroundStyle(Color.sjSecondaryText)
+                .frame(width: 50, alignment: .leading)
+
+            if !model.isEmpty && model != provider {
+                Text("\(provider) · \(model)")
+                    .font(StoryJuicerTypography.uiBody)
+                    .foregroundStyle(Color.sjSecondaryText)
+                    .textSelection(.enabled)
+            } else {
+                Text(provider)
+                    .font(StoryJuicerTypography.uiBody)
+                    .foregroundStyle(Color.sjSecondaryText)
+                    .textSelection(.enabled)
+            }
         }
     }
 

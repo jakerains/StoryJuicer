@@ -11,6 +11,13 @@
             <pubDate>Sat, 21 Feb 2026 11:36:58 -0600</pubDate>
             <sparkle:version>26</sparkle:version>
             <sparkle:shortVersionString>1.7.4</sparkle:shortVersionString>
+            <description><![CDATA[<h2>Version 1.7.4 — Author Mode</h2>
+<ul>
+  <li><strong>New:</strong> Author Mode — write your own story text page-by-page, then StoryFox generates beautiful illustrations using the full AI image pipeline</li>
+  <li><strong>New:</strong> Custom hover tooltips on creation mode chips with snappy glass-material styling</li>
+  <li><strong>Changed:</strong> Creation mode toggle and book setup controls promoted above content for easier mode switching</li>
+  <li><strong>Changed:</strong> Larger, bolder hero title pulled closer to the fox illustration for a tighter visual composition</li>
+</ul>]]></description>
             <sparkle:minimumSystemVersion>26.0</sparkle:minimumSystemVersion>
             <enclosure url="https://github.com/jakerains/StoryFox/releases/download/v1.7.4/StoryFox.dmg" length="32436624" type="application/octet-stream" sparkle:edSignature="VAckENVsXGV9oWnBWXp0WDThQEvuiLwx93kr4G1oXFjIpCiV30NP+5hIu3/Yq0pOxYViyX6QKbtEtlseDzrpAQ=="/>
             <sparkle:deltas>
@@ -22,6 +29,10 @@
             <pubDate>Sat, 21 Feb 2026 11:00:23 -0600</pubDate>
             <sparkle:version>24</sparkle:version>
             <sparkle:shortVersionString>1.7.3</sparkle:shortVersionString>
+            <description><![CDATA[<h2>Version 1.7.3 — Export Page as Image</h2>
+<ul>
+  <li><strong>New:</strong> Export any storybook page as a high-resolution PNG image — cover, story pages, or the ending — perfect for sharing on social media or printing a favorite illustration</li>
+</ul>]]></description>
             <sparkle:minimumSystemVersion>26.0</sparkle:minimumSystemVersion>
             <enclosure url="https://github.com/jakerains/StoryFox/releases/download/v1.7.3/StoryFox.dmg" length="32375613" type="application/octet-stream" sparkle:edSignature="zIbYks//iMSMDskhYvMi45tALQHViYkEEi72jCnpN9F3AVmKaZlGSFEJI5CT0Qh1uk3AKP/cGYhxV73k8NaTCg=="/>
             <sparkle:deltas>
@@ -33,6 +44,14 @@
             <pubDate>Sat, 21 Feb 2026 10:31:37 -0600</pubDate>
             <sparkle:version>23</sparkle:version>
             <sparkle:shortVersionString>1.7.2</sparkle:shortVersionString>
+            <description><![CDATA[<h2>Version 1.7.2 — 3D Page Turn Animation</h2>
+<ul>
+  <li><strong>New:</strong> Realistic 3D page turn animation in the book reader — pages fold and lift like a real book instead of sliding between views</li>
+  <li><strong>New:</strong> Directional page turns — forward flips the current page off to reveal the next, backward folds the previous page back in from the spine</li>
+  <li><strong>New:</strong> Story Info sheet in the reader toolbar — view the original concept, format, style, characters, and full story metadata at a glance</li>
+  <li><strong>Changed:</strong> Each page is now a self-contained book page card with its own paper background, so the entire surface rotates as one unit during turns</li>
+  <li><strong>Changed:</strong> Original story concept is now saved with each storybook and available when reopening from the library</li>
+</ul>]]></description>
             <sparkle:minimumSystemVersion>26.0</sparkle:minimumSystemVersion>
             <enclosure url="https://github.com/jakerains/StoryFox/releases/download/v1.7.2/StoryFox.dmg" length="33253195" type="application/octet-stream" sparkle:edSignature="m6+rJ94UIFy8OHLa8PdIp0TRbRh8u1pzYutSzogMTwdPkIu0BqE7EKmJ8JkIdQ7zhuT/2FH7WglZjI91MQjRDQ=="/>
             <sparkle:deltas>

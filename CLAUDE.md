@@ -107,6 +107,10 @@ landing/                          ← Next.js 15 landing page (Vercel)
   components/                    ← Hero, Features, HuggingFaceSection, StylesShowcase, etc.
   lib/                           ← motion.ts (animation variants), utils.ts
   public/images/                 ← AI-generated illustration style samples
+release-notes/                    ← HTML snippets for Sparkle "What's New" dialog (one per version)
+scripts/
+  release.sh                     ← Automated 8-step release pipeline
+  inject-release-notes.sh        ← Injects release-notes/*.html into appcast.xml <description> elements
 ```
 
 ### Navigation Flow
@@ -203,7 +207,7 @@ Use the release script for the full automated pipeline:
 ./scripts/release.sh 1.0.3 --notes "Fixed a bug with PDF export"
 ```
 
-The script handles everything: version bump → `make dmg` → appcast generation → GitHub release → commit → push. Users on older versions are prompted automatically via Sparkle.
+The script handles everything: version bump → `make dmg` → appcast generation → release notes injection → GitHub release → commit → push. The `--notes` text also powers the Sparkle "What's New" dialog — use semicolons to separate bullet points (e.g., `--notes "Added dark mode; Fixed export bug"`). Users on older versions are prompted automatically via Sparkle and see the release notes in the update dialog.
 
 ### Post-Release Verification (IMPORTANT)
 
@@ -220,6 +224,9 @@ hdiutil detach "/Volumes/StoryFox" -quiet
 curl -s "https://raw.githubusercontent.com/jakerains/StoryFox/main/appcast.xml" | grep -A4 '<item>' | head -5
 
 # 3. Verify generate_appcast said "Wrote 1 new update" (NOT "updated 1 existing")
+
+# 4. Verify release notes were injected into appcast
+grep -c '<description><!\[CDATA' appcast.xml  # should match number of items
 ```
 
 If the DMG version is wrong or the appcast still shows the old version, the version bump didn't take effect. Fix `project.yml` manually, rebuild with `make dmg`, regenerate appcast, and re-upload.
@@ -233,11 +240,12 @@ If the DMG version is wrong or the appcast still shows the old version, the vers
 1. **Bump the patch version** in `project.yml` → `MARKETING_VERSION` (e.g., `1.1.0` → `1.1.1`) and increment `CURRENT_PROJECT_VERSION`
 2. **Update `landing/lib/changelog.ts`** — add or update the entry for the new version with a description of what changed (tagged as `added`, `fixed`, `changed`, or `removed`)
 3. **Update `softwareVersion`** in `landing/app/page.tsx` structured data to match the new version
-4. **Build and release the new version** — run `./scripts/release.sh <version>` to build the DMG, generate the appcast, create the GitHub release, and push. **Bumping the version in `project.yml` alone does NOT make it available to users.** The appcast only updates when a new DMG is built and `generate_appcast` runs against it. Without this step, Sparkle will say "no update available."
-5. **Verify the release** — follow the Post-Release Verification steps above. Do NOT skip this.
-6. **Landing page deploys automatically** — Vercel is git-connected, so pushing to main triggers a deploy. No manual `vercel --prod` needed.
+4. **Create `release-notes/<version>.html`** — write a user-friendly HTML snippet from the changelog entry for the Sparkle "What's New" dialog. Simplify technical language, use **New:**/**Improved:**/**Fixed:** prefixes, drop internal-only changes. The release script uses this file automatically.
+5. **Build and release the new version** — run `./scripts/release.sh <version>` to build the DMG, generate the appcast, inject release notes, create the GitHub release, and push. **Bumping the version in `project.yml` alone does NOT make it available to users.** The appcast only updates when a new DMG is built and `generate_appcast` runs against it. Without this step, Sparkle will say "no update available."
+6. **Verify the release** — follow the Post-Release Verification steps above. Do NOT skip this.
+7. **Landing page deploys automatically** — Vercel is git-connected, so pushing to main triggers a deploy. No manual `vercel --prod` needed.
 
-**Why step 4 matters:** Sparkle compares the installed app's version against `appcast.xml` on GitHub. If you bump `project.yml` but don't rebuild the DMG and regenerate the appcast, the appcast still advertises the old version and users see "no update." The release script handles everything atomically.
+**Why step 5 matters:** Sparkle compares the installed app's version against `appcast.xml` on GitHub. If you bump `project.yml` but don't rebuild the DMG and regenerate the appcast, the appcast still advertises the old version and users see "no update." The release script handles everything atomically.
 
 **Manual release steps** (if not using the script):
 1. Bump `MARKETING_VERSION` and `CURRENT_PROJECT_VERSION` in `project.yml` (macOS target only — iOS version is independent)
@@ -245,8 +253,10 @@ If the DMG version is wrong or the appcast still shows the old version, the vers
 3. **Verify DMG version** — mount the DMG and check `CFBundleShortVersionString` matches (see verification steps above)
 4. `make appcast` — regenerate `appcast.xml` with EdDSA signatures
 5. If appcast is missing `sparkle:edSignature`, run `make sign-update DMG=dist/StoryFox.dmg` and add it manually
-6. `gh release create v<version> dist/StoryFox.dmg` — upload to GitHub Releases
-7. Commit `project.yml`, `appcast.xml`, and `project.pbxproj`, then push to main
+6. Create or update `release-notes/<version>.html` with an HTML snippet for the Sparkle "What's New" dialog
+7. Run `scripts/inject-release-notes.sh` to inject all release notes into `appcast.xml`
+8. `gh release create v<version> dist/StoryFox.dmg` — upload to GitHub Releases
+9. Commit `project.yml`, `appcast.xml`, `project.pbxproj`, and `release-notes/`, then push to main
 
 ### Auto-Update (Sparkle 2)
 
@@ -255,7 +265,9 @@ StoryFox uses [Sparkle 2](https://sparkle-project.org/) for auto-updates (macOS 
 **Key files:**
 - `macOS/SoftwareUpdateManager.swift` — `@Observable` wrapper around `SPUStandardUpdaterController`
 - `Resources/StoryFox-Info.plist` — contains `SUPublicEDKey` (Ed25519 public key for signature verification)
-- `appcast.xml` — RSS feed at repo root listing available versions with download URLs and EdDSA signatures
+- `appcast.xml` — RSS feed at repo root listing available versions with download URLs, EdDSA signatures, and CDATA-wrapped HTML release notes
+- `release-notes/*.html` — Source HTML snippets for each version's "What's New" content (injected into appcast by `scripts/inject-release-notes.sh`)
+- `scripts/inject-release-notes.sh` — Idempotent script that reads `release-notes/*.html` and injects `<description>` elements into matching appcast items
 
 **Architecture:**
 - Feed URL is set programmatically via `SPUUpdaterDelegate.feedURLString(for:)` in `SoftwareUpdateManager` (XcodeGen can't inject custom Info.plist keys via `INFOPLIST_KEY_` — that only works for Apple-registered keys)

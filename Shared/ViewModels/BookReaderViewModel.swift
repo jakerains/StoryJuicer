@@ -40,6 +40,12 @@ final class BookReaderViewModel {
     /// The original user concept that kicked off story generation.
     var originalConcept: String = ""
 
+    /// Provider and model info for the generation that produced this book.
+    var textProviderName: String = ""
+    var imageProviderName: String = ""
+    var textModelName: String = ""
+    var imageModelName: String = ""
+
     /// The UUID of the corresponding StoredStorybook, if persisted.
     var storedBookID: UUID?
 

@@ -644,6 +644,11 @@ struct MainView: View {
                 )
                 readerVM.originalConcept = viewModel.storyConcept
                 readerVM.parsedCharacters = viewModel.parsedCharacters
+                let settings = ModelSelectionStore.load()
+                readerVM.textProviderName = settings.textProvider.displayName
+                readerVM.imageProviderName = settings.imageProvider.displayName
+                readerVM.textModelName = settings.resolvedTextModelLabel
+                readerVM.imageModelName = settings.resolvedImageModelLabel
                 readerVM.onImageRegenerated = { [weak readerVM] index, cgImage in
                     guard let readerVM else { return }
                     persistRegeneratedImage(index: index, image: cgImage, bookID: readerVM.storedBookID)
@@ -669,12 +674,17 @@ struct MainView: View {
             existing.displayOrder += 1
         }
 
+        let settings = ModelSelectionStore.load()
         let stored = StoredStorybook.from(
             storyBook: book,
             images: viewModel.generatedImages,
             format: viewModel.selectedFormat,
             style: viewModel.selectedStyle,
-            concept: viewModel.storyConcept
+            concept: viewModel.storyConcept,
+            textProvider: settings.textProvider.displayName,
+            imageProvider: settings.imageProvider.displayName,
+            textModelName: settings.resolvedTextModelLabel,
+            imageModelName: settings.resolvedImageModelLabel
         )
         stored.displayOrder = 0
         modelContext.insert(stored)
@@ -693,6 +703,10 @@ struct MainView: View {
             generator: IllustrationGenerator()
         )
         readerVM.originalConcept = stored.originalConcept
+        readerVM.textProviderName = stored.textProviderRawValue
+        readerVM.imageProviderName = stored.imageProviderRawValue
+        readerVM.textModelName = stored.textModelName
+        readerVM.imageModelName = stored.imageModelName
         readerVM.storedBookID = stored.id
         readerVM.onImageRegenerated = { [weak readerVM] index, cgImage in
             guard let readerVM else { return }

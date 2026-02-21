@@ -100,7 +100,12 @@ struct MacBookReaderView: View {
                     storyBook: viewModel.storyBook,
                     originalConcept: viewModel.originalConcept,
                     format: viewModel.format,
-                    illustrationStyle: viewModel.illustrationStyle
+                    illustrationStyle: viewModel.illustrationStyle,
+                    currentPageIndex: viewModel.currentPage,
+                    textProviderName: viewModel.textProviderName,
+                    imageProviderName: viewModel.imageProviderName,
+                    textModelName: viewModel.textModelName,
+                    imageModelName: viewModel.imageModelName
                 ) {
                     activeSheet = nil
                 }
