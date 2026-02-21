@@ -28,6 +28,24 @@ struct MacTestHarnessView: View {
     @State private var analysisTestResults: [AnalysisTestPageResult]?
     @State private var analysisTestRunning = false
 
+    // MARK: - Parsing Comparison State (Upgrade 1)
+
+    @State private var parsingTestResult: ParsingTestResult?
+    @State private var parsingTestRunning = false
+
+    // MARK: - A/B Test State (Two-Pass Experiment)
+
+    @State private var abTestResult: ABTestResult?
+    @State private var abTestRunning = false
+
+    // MARK: - A/B Image Generation State
+
+    @State private var abImageTestRunning = false
+    @State private var abImagesA: [Int: CGImage] = [:]
+    @State private var abImagesB: [Int: CGImage] = [:]
+    @State private var abImageCompleted = 0
+    @State private var abImageTotal = 0
+
     // MARK: - Mode 3 State (Image Test)
 
     @State private var imageTestRunning = false
@@ -36,6 +54,7 @@ struct MacTestHarnessView: View {
     @State private var imageTestDuration: TimeInterval?
     @State private var imageTestTotal = 0
     @State private var imageTestCompleted = 0
+    @State private var useReferenceImage = false
 
     // MARK: - Export State
 
@@ -58,11 +77,17 @@ struct MacTestHarnessView: View {
                     characterDescriptionSection(result)
                     pageDetailsSection(result)
                 }
+                if let parsingTestResult {
+                    parsingComparisonSection(parsingTestResult)
+                }
                 if let promptTestResults {
                     promptTestSection(promptTestResults)
                 }
                 if let analysisTestResults {
                     analysisTestSection(analysisTestResults)
+                }
+                if let abTestResult {
+                    abTestSection(abTestResult)
                 }
                 if !imageTestImages.isEmpty || imageTestRunning {
                     imageTestSection
@@ -122,7 +147,7 @@ struct MacTestHarnessView: View {
 
                 Spacer()
 
-                if isRunning || imageTestRunning || analysisTestRunning {
+                if isRunning || imageTestRunning || analysisTestRunning || parsingTestRunning || abTestRunning || abImageTestRunning {
                     HStack(spacing: 8) {
                         ProgressView()
                             .controlSize(.small)
@@ -146,7 +171,22 @@ struct MacTestHarnessView: View {
                 }
                 .buttonStyle(.borderedProminent)
                 .tint(.sjCoral)
-                .disabled(isRunning || imageTestRunning || analysisTestRunning)
+                .disabled(isRunning || imageTestRunning || analysisTestRunning || parsingTestRunning || abTestRunning || abImageTestRunning)
+
+                // Test Parsing button — requires LLM result (Upgrade 1)
+                Button {
+                    runParsingTest()
+                } label: {
+                    HStack(spacing: 6) {
+                        Image(systemName: "text.viewfinder")
+                        Text("Test Parsing")
+                    }
+                    .font(StoryJuicerTypography.uiBodyStrong)
+                }
+                .buttonStyle(.borderedProminent)
+                .tint(.sjGold.opacity(0.8))
+                .disabled(result == nil || isRunning || imageTestRunning || analysisTestRunning || parsingTestRunning || abTestRunning || abImageTestRunning)
+                .help(result == nil ? "Run Test LLM first" : "Compare regex vs Foundation Model character parsing")
 
                 // Test Prompts button — requires LLM result
                 Button {
@@ -160,7 +200,7 @@ struct MacTestHarnessView: View {
                 }
                 .buttonStyle(.borderedProminent)
                 .tint(.sjMint)
-                .disabled(result == nil || isRunning || imageTestRunning || analysisTestRunning)
+                .disabled(result == nil || isRunning || imageTestRunning || analysisTestRunning || parsingTestRunning || abTestRunning || abImageTestRunning)
                 .help(result == nil ? "Run Test LLM first" : "Inspect the variant fallback chain")
 
                 // Test Analysis button — requires LLM result
@@ -175,7 +215,7 @@ struct MacTestHarnessView: View {
                 }
                 .buttonStyle(.borderedProminent)
                 .tint(.sjGold)
-                .disabled(result == nil || isRunning || imageTestRunning || analysisTestRunning)
+                .disabled(result == nil || isRunning || imageTestRunning || analysisTestRunning || parsingTestRunning || abTestRunning || abImageTestRunning)
                 .help(result == nil ? "Run Test LLM first" : "Run Foundation Model prompt analysis on each page")
 
                 // Test Images button — requires LLM result
@@ -190,8 +230,32 @@ struct MacTestHarnessView: View {
                 }
                 .buttonStyle(.borderedProminent)
                 .tint(.sjSky)
-                .disabled(result == nil || isRunning || imageTestRunning || analysisTestRunning)
+                .disabled(result == nil || isRunning || imageTestRunning || analysisTestRunning || parsingTestRunning || abTestRunning || abImageTestRunning)
                 .help(result == nil ? "Run Test LLM first" : "Generate images with the full pipeline")
+
+                // Test A/B button — requires LLM result, Foundation Models only
+                Button {
+                    runABTest()
+                } label: {
+                    HStack(spacing: 6) {
+                        Image(systemName: "arrow.triangle.branch")
+                        Text("Test A/B")
+                    }
+                    .font(StoryJuicerTypography.uiBodyStrong)
+                }
+                .buttonStyle(.borderedProminent)
+                .tint(.sjLavender)
+                .disabled(result == nil || isRunning || imageTestRunning || analysisTestRunning || parsingTestRunning || abTestRunning || abImageTestRunning)
+                .help(result == nil ? "Run Test LLM first" : "Compare single-pass vs two-pass generation")
+
+                // Reference image toggle — A/B test: cover as ref vs prompt-only
+                Toggle(isOn: $useReferenceImage) {
+                    Label("Ref Image", systemImage: useReferenceImage ? "photo.badge.checkmark" : "photo.badge.minus")
+                        .font(StoryJuicerTypography.uiFootnoteStrong)
+                }
+                .toggleStyle(.switch)
+                .controlSize(.small)
+                .help("When on, cover image is passed as a reference for Page 1. Turn off to test prompt-only generation.")
 
                 Spacer()
 
@@ -207,7 +271,7 @@ struct MacTestHarnessView: View {
                 }
                 .buttonStyle(.borderedProminent)
                 .tint(copyButtonLabel == "Copied!" ? .green : .sjGlassInk)
-                .disabled(result == nil || isRunning || imageTestRunning || analysisTestRunning)
+                .disabled(result == nil || isRunning || imageTestRunning || analysisTestRunning || parsingTestRunning || abTestRunning || abImageTestRunning)
                 .help("Copy test results as JSON for pasting into Claude")
             }
         }
@@ -304,9 +368,24 @@ struct MacTestHarnessView: View {
 
     private func characterDescriptionSection(_ result: ImagePromptEnricher.HarnessResult) -> some View {
         VStack(alignment: .leading, spacing: StoryJuicerGlassTokens.Spacing.small) {
-            Text("Character Descriptions")
-                .font(StoryJuicerTypography.settingsSectionTitle)
-                .foregroundStyle(Color.sjGlassInk)
+            HStack(spacing: 8) {
+                Text("Character Descriptions")
+                    .font(StoryJuicerTypography.settingsSectionTitle)
+                    .foregroundStyle(Color.sjGlassInk)
+
+                if CharacterDescriptionValidator.lastRepairUsedFoundationModel {
+                    HStack(spacing: 3) {
+                        Image(systemName: "wand.and.stars")
+                            .font(.caption2)
+                        Text("FM Repaired")
+                            .font(StoryJuicerTypography.uiMeta)
+                    }
+                    .foregroundStyle(.orange)
+                    .padding(.horizontal, 6)
+                    .padding(.vertical, 2)
+                    .background(Color.orange.opacity(0.12), in: Capsule())
+                }
+            }
 
             Text(result.rawBook.characterDescriptions)
                 .font(.system(.body, design: .monospaced))
@@ -809,6 +888,10 @@ struct MacTestHarnessView: View {
         errorMessage = nil
         promptTestResults = nil
         analysisTestResults = nil
+        parsingTestResult = nil
+        abTestResult = nil
+        abImagesA = [:]
+        abImagesB = [:]
         imageTestImages = [:]
         imageTestVariantWins = [:]
         imageTestDuration = nil
@@ -838,6 +921,163 @@ struct MacTestHarnessView: View {
                 }
             }
         }
+    }
+
+    // MARK: - Test Execution: Parsing Comparison (Upgrade 1)
+
+    private func runParsingTest() {
+        guard let result else { return }
+        parsingTestRunning = true
+        parsingTestResult = nil
+        statusText = "Parsing characters with regex and Foundation Model..."
+
+        Task {
+            let descriptions = result.rawBook.characterDescriptions
+
+            // Regex parsing (sync)
+            let regexParsed = ImagePromptEnricher.parseCharacterDescriptions(descriptions)
+
+            // Foundation Model parsing (async)
+            let fmParsed = await ImagePromptEnricher.parseCharacterDescriptionsAsync(descriptions)
+
+            // Determine if FM was actually used (different results = FM contributed)
+            let fmWasUsed = regexParsed.count != fmParsed.count
+                || zip(regexParsed, fmParsed).contains { a, b in a.species != b.species }
+
+            await MainActor.run {
+                parsingTestResult = ParsingTestResult(
+                    characterDescriptions: descriptions,
+                    regexParsed: regexParsed,
+                    foundationModelParsed: fmParsed,
+                    foundationModelUsed: fmWasUsed
+                )
+                parsingTestRunning = false
+                statusText = ""
+            }
+        }
+    }
+
+    // MARK: - Parsing Comparison UI
+
+    private func parsingComparisonSection(_ result: ParsingTestResult) -> some View {
+        VStack(alignment: .leading, spacing: StoryJuicerGlassTokens.Spacing.medium) {
+            HStack(spacing: 8) {
+                Image(systemName: "text.viewfinder")
+                    .foregroundStyle(Color.sjGold)
+                Text("Character Parsing Comparison")
+                    .font(StoryJuicerTypography.settingsSectionTitle)
+                    .foregroundStyle(Color.sjGlassInk)
+
+                if result.foundationModelUsed {
+                    HStack(spacing: 3) {
+                        Image(systemName: "brain")
+                            .font(.caption2)
+                        Text("FM Active")
+                            .font(StoryJuicerTypography.uiMeta)
+                    }
+                    .foregroundStyle(.green)
+                    .padding(.horizontal, 6)
+                    .padding(.vertical, 2)
+                    .background(Color.green.opacity(0.12), in: Capsule())
+                } else {
+                    HStack(spacing: 3) {
+                        Image(systemName: "exclamationmark.circle")
+                            .font(.caption2)
+                        Text("FM Unavailable")
+                            .font(StoryJuicerTypography.uiMeta)
+                    }
+                    .foregroundStyle(.orange)
+                    .padding(.horizontal, 6)
+                    .padding(.vertical, 2)
+                    .background(Color.orange.opacity(0.12), in: Capsule())
+                }
+            }
+
+            // Side-by-side table
+            let maxCount = max(result.regexParsed.count, result.foundationModelParsed.count)
+            ForEach(0..<maxCount, id: \.self) { idx in
+                HStack(alignment: .top, spacing: StoryJuicerGlassTokens.Spacing.medium) {
+                    // Regex column
+                    if idx < result.regexParsed.count {
+                        let entry = result.regexParsed[idx]
+                        characterEntryColumn(
+                            title: "Regex",
+                            tint: .sjMint,
+                            name: entry.name,
+                            species: entry.species,
+                            injection: entry.injectionPhrase
+                        )
+                    } else {
+                        characterEntryColumn(title: "Regex", tint: .sjMint, name: "—", species: "—", injection: "—")
+                    }
+
+                    // FM column
+                    if idx < result.foundationModelParsed.count {
+                        let entry = result.foundationModelParsed[idx]
+                        let speciesDiffers = idx < result.regexParsed.count && entry.species != result.regexParsed[idx].species
+                        characterEntryColumn(
+                            title: "Foundation Model",
+                            tint: .sjCoral,
+                            name: entry.name,
+                            species: entry.species,
+                            injection: entry.injectionPhrase,
+                            highlight: speciesDiffers
+                        )
+                    } else {
+                        characterEntryColumn(title: "Foundation Model", tint: .sjCoral, name: "—", species: "—", injection: "—")
+                    }
+                }
+                .padding(StoryJuicerGlassTokens.Spacing.medium)
+                .sjGlassCard(cornerRadius: StoryJuicerGlassTokens.Radius.card)
+            }
+        }
+    }
+
+    private func characterEntryColumn(
+        title: String,
+        tint: Color,
+        name: String,
+        species: String,
+        injection: String,
+        highlight: Bool = false
+    ) -> some View {
+        VStack(alignment: .leading, spacing: 4) {
+            Text(title)
+                .font(StoryJuicerTypography.uiMetaStrong)
+                .foregroundStyle(tint)
+
+            HStack(spacing: 4) {
+                Text("Name:")
+                    .font(.system(.caption2, design: .monospaced).weight(.medium))
+                    .foregroundStyle(Color.sjSecondaryText)
+                    .frame(width: 60, alignment: .trailing)
+                Text(name)
+                    .font(.system(.caption2, design: .monospaced))
+                    .foregroundStyle(Color.sjGlassInk)
+            }
+
+            HStack(spacing: 4) {
+                Text("Species:")
+                    .font(.system(.caption2, design: .monospaced).weight(.medium))
+                    .foregroundStyle(Color.sjSecondaryText)
+                    .frame(width: 60, alignment: .trailing)
+                Text(species.isEmpty ? "—" : species)
+                    .font(.system(.caption2, design: .monospaced).weight(highlight ? .bold : .regular))
+                    .foregroundStyle(highlight ? .orange : Color.sjGlassInk)
+            }
+
+            HStack(alignment: .top, spacing: 4) {
+                Text("Inject:")
+                    .font(.system(.caption2, design: .monospaced).weight(.medium))
+                    .foregroundStyle(Color.sjSecondaryText)
+                    .frame(width: 60, alignment: .trailing)
+                Text(injection)
+                    .font(.system(.caption2, design: .monospaced))
+                    .foregroundStyle(Color.sjGlassInk)
+                    .lineLimit(2)
+            }
+        }
+        .frame(maxWidth: .infinity, alignment: .leading)
     }
 
     // MARK: - Test Execution: Prompt Test (Mode 1)
@@ -996,6 +1236,7 @@ struct MacTestHarnessView: View {
 
         Task {
             let illustrator = IllustrationGenerator()
+            illustrator.useReferenceImage = useReferenceImage
             let start = ContinuousClock.now
 
             do {
@@ -1024,6 +1265,567 @@ struct MacTestHarnessView: View {
             imageTestRunning = false
             statusText = ""
         }
+    }
+
+    // MARK: - A/B Test Section (Two-Pass Experiment)
+
+    private func abTestSection(_ abResult: ABTestResult) -> some View {
+        VStack(alignment: .leading, spacing: StoryJuicerGlassTokens.Spacing.medium) {
+            HStack(spacing: 8) {
+                Image(systemName: "arrow.triangle.branch")
+                    .foregroundStyle(Color.sjLavender)
+                Text("A/B Comparison: Single-Pass vs Two-Pass")
+                    .font(StoryJuicerTypography.settingsSectionTitle)
+                    .foregroundStyle(Color.sjGlassInk)
+            }
+
+            Text("Method A = single-pass (simultaneous text + prompts). Method B = two-pass (text first, then prompts with full context).")
+                .font(StoryJuicerTypography.uiMeta)
+                .foregroundStyle(Color.sjSecondaryText)
+
+            // Score comparison cards
+            abScoreComparison(abResult)
+
+            // Generate A/B Images action card
+            VStack(spacing: StoryJuicerGlassTokens.Spacing.medium) {
+                HStack {
+                    VStack(alignment: .leading, spacing: 4) {
+                        Text("Visual Comparison")
+                            .font(StoryJuicerTypography.uiBodyStrong)
+                            .foregroundStyle(Color.sjGlassInk)
+                        Text("Generate images from both A and B prompts to compare visual output side-by-side.")
+                            .font(StoryJuicerTypography.uiMeta)
+                            .foregroundStyle(Color.sjSecondaryText)
+                    }
+
+                    Spacer()
+
+                    Button {
+                        runABImageTest()
+                    } label: {
+                        HStack(spacing: 6) {
+                            Image(systemName: "photo.on.rectangle.angled")
+                            Text(abImagesA.isEmpty && abImagesB.isEmpty ? "Generate A/B Images" : "Regenerate")
+                        }
+                        .font(StoryJuicerTypography.uiBodyStrong)
+                    }
+                    .buttonStyle(.borderedProminent)
+                    .tint(.sjCoral)
+                    .disabled(abImageTestRunning || isRunning || imageTestRunning || analysisTestRunning || parsingTestRunning || abTestRunning)
+                }
+
+                if abImageTestRunning {
+                    VStack(alignment: .leading, spacing: 6) {
+                        HStack {
+                            Text("Generating images...")
+                                .font(StoryJuicerTypography.uiBodyStrong)
+                                .foregroundStyle(Color.sjGlassInk)
+                            Spacer()
+                            Text("\(abImageCompleted)/\(abImageTotal)")
+                                .font(StoryJuicerTypography.uiMetaStrong)
+                                .foregroundStyle(Color.sjSecondaryText)
+                                .monospacedDigit()
+                        }
+                        ProgressView(value: Double(abImageCompleted), total: Double(max(abImageTotal, 1)))
+                            .tint(.sjLavender)
+                    }
+                } else if !abImagesA.isEmpty || !abImagesB.isEmpty {
+                    let totalSucceeded = abImagesA.count + abImagesB.count
+                    HStack(spacing: 4) {
+                        Image(systemName: totalSucceeded == abImageTotal ? "checkmark.circle.fill" : "exclamationmark.circle.fill")
+                            .foregroundStyle(totalSucceeded == abImageTotal ? .green : .orange)
+                        Text("\(totalSucceeded)/\(abImageTotal) images generated")
+                            .font(StoryJuicerTypography.uiMetaStrong)
+                            .foregroundStyle(totalSucceeded == abImageTotal ? .green : .orange)
+                    }
+                }
+            }
+            .padding(StoryJuicerGlassTokens.Spacing.medium)
+            .sjGlassCard(cornerRadius: StoryJuicerGlassTokens.Radius.card)
+
+            // A/B image comparison grid (shown during and after generation)
+            if !abImagesA.isEmpty || !abImagesB.isEmpty || abImageTestRunning {
+                abImageComparisonGrid(abResult)
+            }
+
+            // Character descriptions from Method B
+            VStack(alignment: .leading, spacing: StoryJuicerGlassTokens.Spacing.small) {
+                Text("Method B Character Descriptions")
+                    .font(StoryJuicerTypography.uiBodyStrong)
+                    .foregroundStyle(Color.sjGlassInk)
+                Text(abResult.methodBCharacterDescriptions)
+                    .font(.system(.body, design: .monospaced))
+                    .foregroundStyle(Color.sjGlassInk)
+                    .textSelection(.enabled)
+                    .padding(StoryJuicerGlassTokens.Spacing.medium)
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                    .sjGlassCard(cornerRadius: StoryJuicerGlassTokens.Radius.card)
+            }
+
+            // Per-page prompt comparison
+            VStack(alignment: .leading, spacing: StoryJuicerGlassTokens.Spacing.small) {
+                Text("Per-Page Prompt Comparison")
+                    .font(StoryJuicerTypography.uiBodyStrong)
+                    .foregroundStyle(Color.sjGlassInk)
+
+                ForEach(abResult.perPage) { page in
+                    abPageComparisonRow(page)
+                }
+            }
+        }
+    }
+
+    private func abScoreComparison(_ abResult: ABTestResult) -> some View {
+        VStack(spacing: StoryJuicerGlassTokens.Spacing.small) {
+            abScoreRow(label: "Overall", scoreA: abResult.methodA.overall, scoreB: abResult.methodB.overall)
+            abScoreRow(label: "Species in Prompts", scoreA: abResult.methodA.species, scoreB: abResult.methodB.species)
+            abScoreRow(label: "Appearance in Prompts", scoreA: abResult.methodA.appearance, scoreB: abResult.methodB.appearance)
+            abScoreRow(label: "Name Consistency", scoreA: abResult.methodA.name, scoreB: abResult.methodB.name)
+
+            Divider()
+
+            HStack {
+                Text("Verdict")
+                    .font(StoryJuicerTypography.uiBodyStrong)
+                    .foregroundStyle(Color.sjGlassInk)
+                Spacer()
+                verdictBadge("A", verdict: abResult.methodA.verdict, tint: .sjCoral)
+                verdictBadge("B", verdict: abResult.methodB.verdict, tint: .sjLavender)
+            }
+        }
+        .padding(StoryJuicerGlassTokens.Spacing.medium)
+        .sjGlassCard(cornerRadius: StoryJuicerGlassTokens.Radius.card)
+    }
+
+    private func abScoreRow(label: String, scoreA: Double, scoreB: Double) -> some View {
+        HStack(spacing: 12) {
+            Text(label)
+                .font(StoryJuicerTypography.uiBodyStrong)
+                .foregroundStyle(Color.sjGlassInk)
+                .frame(width: 160, alignment: .leading)
+
+            // Method A bar
+            HStack(spacing: 4) {
+                Text("A")
+                    .font(StoryJuicerTypography.uiMetaStrong)
+                    .foregroundStyle(Color.sjCoral)
+                    .frame(width: 14)
+                abScoreBar(score: scoreA, tint: .sjCoral)
+                Text("\(Int(scoreA * 100))%")
+                    .font(StoryJuicerTypography.uiMeta)
+                    .foregroundStyle(Color.sjGlassInk)
+                    .monospacedDigit()
+                    .frame(width: 36, alignment: .trailing)
+            }
+
+            // Method B bar
+            HStack(spacing: 4) {
+                Text("B")
+                    .font(StoryJuicerTypography.uiMetaStrong)
+                    .foregroundStyle(Color.sjLavender)
+                    .frame(width: 14)
+                abScoreBar(score: scoreB, tint: .sjLavender)
+                Text("\(Int(scoreB * 100))%")
+                    .font(StoryJuicerTypography.uiMeta)
+                    .foregroundStyle(Color.sjGlassInk)
+                    .monospacedDigit()
+                    .frame(width: 36, alignment: .trailing)
+            }
+
+            // Delta indicator
+            let delta = scoreB - scoreA
+            if abs(delta) > 0.01 {
+                Text(delta > 0 ? "+\(Int(delta * 100))%" : "\(Int(delta * 100))%")
+                    .font(StoryJuicerTypography.uiMetaStrong)
+                    .foregroundStyle(delta > 0 ? .green : .red)
+                    .monospacedDigit()
+                    .frame(width: 48, alignment: .trailing)
+            } else {
+                Text("=")
+                    .font(StoryJuicerTypography.uiMetaStrong)
+                    .foregroundStyle(Color.sjSecondaryText)
+                    .frame(width: 48, alignment: .trailing)
+            }
+        }
+    }
+
+    private func abScoreBar(score: Double, tint: Color) -> some View {
+        GeometryReader { geo in
+            ZStack(alignment: .leading) {
+                RoundedRectangle(cornerRadius: 3)
+                    .fill(Color.sjMuted.opacity(0.15))
+                RoundedRectangle(cornerRadius: 3)
+                    .fill(tint)
+                    .frame(width: geo.size.width * score)
+            }
+        }
+        .frame(width: 80, height: 10)
+    }
+
+    private func verdictBadge(_ method: String, verdict: String, tint: Color) -> some View {
+        HStack(spacing: 4) {
+            Text(method)
+                .font(StoryJuicerTypography.uiMetaStrong)
+            Text(verdict)
+                .font(StoryJuicerTypography.uiMeta)
+        }
+        .foregroundStyle(verdict == "pass" ? .green : verdict == "marginal" ? .orange : .red)
+        .padding(.horizontal, 8)
+        .padding(.vertical, 3)
+        .background(tint.opacity(0.12), in: Capsule())
+    }
+
+    private func abPageComparisonRow(_ page: ABTestResult.PageComparison) -> some View {
+        VStack(alignment: .leading, spacing: 8) {
+            HStack(spacing: 8) {
+                Text("Page \(page.pageNumber)")
+                    .font(StoryJuicerTypography.uiBodyStrong)
+                    .foregroundStyle(Color.sjGlassInk)
+
+                // Method A badges
+                HStack(spacing: 2) {
+                    Text("A:")
+                        .font(StoryJuicerTypography.uiMetaStrong)
+                        .foregroundStyle(Color.sjCoral)
+                    checkBadge("Sp", passed: page.aHasSpecies)
+                    checkBadge("Ap", passed: page.aHasAppearance)
+                }
+
+                // Method B badges
+                HStack(spacing: 2) {
+                    Text("B:")
+                        .font(StoryJuicerTypography.uiMetaStrong)
+                        .foregroundStyle(Color.sjLavender)
+                    checkBadge("Sp", passed: page.bHasSpecies)
+                    checkBadge("Ap", passed: page.bHasAppearance)
+                }
+            }
+
+            // Side-by-side prompts
+            HStack(alignment: .top, spacing: StoryJuicerGlassTokens.Spacing.medium) {
+                VStack(alignment: .leading, spacing: 2) {
+                    Text("Method A (single-pass):")
+                        .font(StoryJuicerTypography.uiMetaStrong)
+                        .foregroundStyle(Color.sjCoral)
+                    Text(page.methodAPrompt)
+                        .font(.system(.caption, design: .monospaced))
+                        .foregroundStyle(Color.sjGlassInk)
+                        .textSelection(.enabled)
+                }
+                .frame(maxWidth: .infinity, alignment: .leading)
+
+                VStack(alignment: .leading, spacing: 2) {
+                    Text("Method B (two-pass):")
+                        .font(StoryJuicerTypography.uiMetaStrong)
+                        .foregroundStyle(Color.sjLavender)
+                    Text(page.methodBPrompt)
+                        .font(.system(.caption, design: .monospaced))
+                        .foregroundStyle(Color.sjGlassInk)
+                        .textSelection(.enabled)
+                }
+                .frame(maxWidth: .infinity, alignment: .leading)
+            }
+        }
+        .padding(StoryJuicerGlassTokens.Spacing.medium)
+        .sjGlassCard(cornerRadius: StoryJuicerGlassTokens.Radius.card)
+    }
+
+    // MARK: - A/B Image Comparison Grid
+
+    private func abImageComparisonGrid(_ abResult: ABTestResult) -> some View {
+        VStack(alignment: .leading, spacing: StoryJuicerGlassTokens.Spacing.medium) {
+            Text("Visual Comparison")
+                .font(StoryJuicerTypography.uiBodyStrong)
+                .foregroundStyle(Color.sjGlassInk)
+
+            ForEach(abResult.perPage) { page in
+                VStack(alignment: .leading, spacing: 8) {
+                    Text("Page \(page.pageNumber)")
+                        .font(StoryJuicerTypography.uiBodyStrong)
+                        .foregroundStyle(Color.sjGlassInk)
+
+                    HStack(alignment: .top, spacing: StoryJuicerGlassTokens.Spacing.medium) {
+                        // Method A image
+                        VStack(spacing: 6) {
+                            if let cgImage = abImagesA[page.pageNumber] {
+                                Image(decorative: cgImage, scale: 1.0)
+                                    .resizable()
+                                    .scaledToFit()
+                                    .clipShape(RoundedRectangle(cornerRadius: 8))
+                                    .shadow(color: .black.opacity(0.15), radius: 4, y: 2)
+                            } else if abImageTestRunning {
+                                RoundedRectangle(cornerRadius: 8)
+                                    .fill(Color.sjMuted.opacity(0.1))
+                                    .aspectRatio(1, contentMode: .fit)
+                                    .overlay {
+                                        ProgressView()
+                                            .controlSize(.small)
+                                    }
+                            } else {
+                                RoundedRectangle(cornerRadius: 8)
+                                    .fill(Color.sjMuted.opacity(0.1))
+                                    .aspectRatio(1, contentMode: .fit)
+                                    .overlay {
+                                        Image(systemName: "xmark.circle")
+                                            .foregroundStyle(Color.sjMuted)
+                                    }
+                            }
+                            Text("Method A")
+                                .font(StoryJuicerTypography.uiMetaStrong)
+                                .foregroundStyle(Color.sjCoral)
+                        }
+                        .frame(maxWidth: .infinity)
+
+                        // Method B image
+                        VStack(spacing: 6) {
+                            if let cgImage = abImagesB[page.pageNumber] {
+                                Image(decorative: cgImage, scale: 1.0)
+                                    .resizable()
+                                    .scaledToFit()
+                                    .clipShape(RoundedRectangle(cornerRadius: 8))
+                                    .shadow(color: .black.opacity(0.15), radius: 4, y: 2)
+                            } else if abImageTestRunning {
+                                RoundedRectangle(cornerRadius: 8)
+                                    .fill(Color.sjMuted.opacity(0.1))
+                                    .aspectRatio(1, contentMode: .fit)
+                                    .overlay {
+                                        ProgressView()
+                                            .controlSize(.small)
+                                    }
+                            } else {
+                                RoundedRectangle(cornerRadius: 8)
+                                    .fill(Color.sjMuted.opacity(0.1))
+                                    .aspectRatio(1, contentMode: .fit)
+                                    .overlay {
+                                        Image(systemName: "xmark.circle")
+                                            .foregroundStyle(Color.sjMuted)
+                                    }
+                            }
+                            Text("Method B")
+                                .font(StoryJuicerTypography.uiMetaStrong)
+                                .foregroundStyle(Color.sjLavender)
+                        }
+                        .frame(maxWidth: .infinity)
+                    }
+                }
+                .padding(StoryJuicerGlassTokens.Spacing.medium)
+                .sjGlassCard(cornerRadius: StoryJuicerGlassTokens.Radius.card)
+            }
+        }
+    }
+
+    // MARK: - Test Execution: A/B Image Generation
+
+    private func runABImageTest() {
+        guard let abTestResult, let result else { return }
+        abImageTestRunning = true
+        abImagesA = [:]
+        abImagesB = [:]
+        abImageTotal = abTestResult.perPage.count * 2
+        abImageCompleted = 0
+        statusText = "Generating A/B comparison images..."
+
+        Task {
+            let illustrator = IllustrationGenerator()
+
+            // Character descriptions for enrichment
+            let charDescA = result.rawBook.characterDescriptions
+            let charDescB = abTestResult.methodBCharacterDescriptions
+
+            for page in abTestResult.perPage {
+                let enrichedA = IllustrationGenerator.enrichPromptWithCharacters(
+                    page.methodAPrompt,
+                    characterDescriptions: charDescA
+                )
+                let enrichedB = IllustrationGenerator.enrichPromptWithCharacters(
+                    page.methodBPrompt,
+                    characterDescriptions: charDescB
+                )
+
+                statusText = "Page \(page.pageNumber): generating A & B images..."
+
+                // Generate A and B for this page concurrently
+                await withTaskGroup(of: (String, Int, CGImage?).self) { group in
+                    group.addTask {
+                        let image = try? await illustrator.generateSingleImage(
+                            prompt: enrichedA,
+                            style: .illustration,
+                            format: .standard,
+                            pageIndex: page.pageNumber
+                        )
+                        return ("A", page.pageNumber, image)
+                    }
+                    group.addTask {
+                        let image = try? await illustrator.generateSingleImage(
+                            prompt: enrichedB,
+                            style: .illustration,
+                            format: .standard,
+                            pageIndex: page.pageNumber
+                        )
+                        return ("B", page.pageNumber, image)
+                    }
+
+                    for await (method, pageNum, image) in group {
+                        await MainActor.run {
+                            if let image {
+                                if method == "A" {
+                                    abImagesA[pageNum] = image
+                                } else {
+                                    abImagesB[pageNum] = image
+                                }
+                            }
+                            abImageCompleted += 1
+                        }
+                    }
+                }
+            }
+
+            await MainActor.run {
+                abImageTestRunning = false
+                statusText = ""
+            }
+        }
+    }
+
+    // MARK: - Test Execution: A/B Test (Two-Pass)
+
+    private func runABTest() {
+        guard let result else { return }
+        abTestRunning = true
+        abTestResult = nil
+        abImagesA = [:]
+        abImagesB = [:]
+        statusText = "A/B Test: Pass 1 — generating text..."
+
+        Task {
+            do {
+                // Method A scores already exist from the LLM test
+                let methodAScores = ABTestResult.MethodScores(
+                    overall: result.overallScore,
+                    species: result.speciesInPromptsScore,
+                    appearance: result.appearanceInPromptsScore,
+                    name: result.nameConsistencyScore,
+                    verdict: result.overallScore >= 0.75 ? "pass" : result.overallScore >= 0.50 ? "marginal" : "fail"
+                )
+
+                // Method B: Two-pass generation using Foundation Models
+                let methodBBook = try await generateTwoPassStory()
+
+                statusText = "A/B Test: Scoring method B..."
+
+                let methodBResult = ImagePromptEnricher.evaluate(
+                    rawBook: methodBBook,
+                    expectedSpecies: expectedSpecies,
+                    concept: baselineConcept
+                )
+
+                let methodBScores = ABTestResult.MethodScores(
+                    overall: methodBResult.overallScore,
+                    species: methodBResult.speciesInPromptsScore,
+                    appearance: methodBResult.appearanceInPromptsScore,
+                    name: methodBResult.nameConsistencyScore,
+                    verdict: methodBResult.overallScore >= 0.75 ? "pass" : methodBResult.overallScore >= 0.50 ? "marginal" : "fail"
+                )
+
+                // Build per-page comparison
+                var perPage: [ABTestResult.PageComparison] = []
+                let methodAPages = result.details
+                let methodBPages = methodBResult.details
+
+                for (aPage, bPage) in zip(methodAPages, methodBPages) {
+                    perPage.append(ABTestResult.PageComparison(
+                        pageNumber: aPage.pageNumber,
+                        methodAPrompt: aPage.rawImagePrompt,
+                        methodBPrompt: bPage.rawImagePrompt,
+                        aHasSpecies: aPage.hasSpecies,
+                        bHasSpecies: bPage.hasSpecies,
+                        aHasAppearance: aPage.hasAppearance,
+                        bHasAppearance: bPage.hasAppearance
+                    ))
+                }
+
+                await MainActor.run {
+                    abTestResult = ABTestResult(
+                        methodA: methodAScores,
+                        methodB: methodBScores,
+                        methodBCharacterDescriptions: methodBBook.characterDescriptions,
+                        perPage: perPage
+                    )
+                    abTestRunning = false
+                    statusText = ""
+                }
+            } catch {
+                await MainActor.run {
+                    errorMessage = "A/B Test failed: \(error.localizedDescription)"
+                    abTestRunning = false
+                    statusText = ""
+                }
+            }
+        }
+    }
+
+    /// Two-pass story generation: text first, then image prompts.
+    @MainActor
+    private func generateTwoPassStory() async throws -> StoryBook {
+        guard SystemLanguageModel.default.availability == .available else {
+            throw TestHarnessError.providerUnavailable
+        }
+
+        let safeConcept = ContentSafetyPolicy.sanitizeConcept(baselineConcept)
+        let options = GenerationOptions(
+            temperature: Double(GenerationConfig.defaultTemperature),
+            maximumResponseTokens: GenerationConfig.maximumResponseTokens(for: testPageCount)
+        )
+
+        // Pass 1: Generate text only
+        statusText = "A/B Test: Pass 1 — generating story text..."
+        let textSession = LanguageModelSession(
+            instructions: StoryPromptTemplates.systemInstructions
+        )
+        let textPrompt = StoryPromptTemplates.textOnlyPrompt(
+            concept: safeConcept,
+            pageCount: testPageCount
+        )
+        let textResponse = try await textSession.respond(
+            to: textPrompt,
+            generating: TextOnlyStoryBook.self,
+            options: options
+        )
+        let textBook = textResponse.content
+
+        // Pass 2: Generate image prompts with full context
+        statusText = "A/B Test: Pass 2 — generating image prompts..."
+        let imageSession = LanguageModelSession(
+            instructions: "You are an expert art director for children's storybook illustrations. Write vivid, detailed scene descriptions."
+        )
+        let imagePromptText = StoryPromptTemplates.imagePromptPassPrompt(
+            characterDescriptions: textBook.characterDescriptions,
+            pages: textBook.pages.map { (pageNumber: $0.pageNumber, text: $0.text) }
+        )
+        let imageResponse = try await imageSession.respond(
+            to: imagePromptText,
+            generating: ImagePromptSheet.self,
+            options: options
+        )
+        let promptSheet = imageResponse.content
+
+        // Merge into a StoryBook
+        let mergedPages = textBook.pages.map { textPage -> StoryPage in
+            let matchingPrompt = promptSheet.prompts.first { $0.pageNumber == textPage.pageNumber }
+            return StoryPage(
+                pageNumber: textPage.pageNumber,
+                text: textPage.text,
+                imagePrompt: matchingPrompt?.imagePrompt ?? "A scene from a children's storybook"
+            )
+        }
+
+        return StoryBook(
+            title: textBook.title,
+            authorLine: textBook.authorLine,
+            moral: textBook.moral,
+            characterDescriptions: textBook.characterDescriptions,
+            pages: mergedPages
+        )
     }
 
     // MARK: - JSON Export
@@ -1080,6 +1882,27 @@ struct MacTestHarnessView: View {
             characterDescriptions: result.rawBook.characterDescriptions,
             pages: llmPages
         )
+
+        // Parsing test (optional — Upgrade 1)
+        var parsingTest: TestHarnessExport.ParsingTest?
+        if let parsingTestResult {
+            let toExport = { (entries: [ImagePromptEnricher.CharacterEntry]) in
+                entries.map { e in
+                    TestHarnessExport.ParsingTest.CharacterEntryExport(
+                        name: e.name,
+                        species: e.species,
+                        visualSummary: e.visualSummary,
+                        injectionPhrase: e.injectionPhrase
+                    )
+                }
+            }
+            parsingTest = TestHarnessExport.ParsingTest(
+                foundationModelUsed: parsingTestResult.foundationModelUsed,
+                validationRepaired: CharacterDescriptionValidator.lastRepairUsedFoundationModel,
+                regexParsed: toExport(parsingTestResult.regexParsed),
+                foundationModelParsed: toExport(parsingTestResult.foundationModelParsed)
+            )
+        }
 
         // Prompt test (optional)
         var promptTest: TestHarnessExport.PromptTest?
@@ -1143,16 +1966,57 @@ struct MacTestHarnessView: View {
                 totalDurationSeconds: imageTestDuration ?? 0,
                 successCount: imageTestImages.count,
                 totalCount: imageTestTotal,
-                variantWins: imageTestVariantWins
+                variantWins: imageTestVariantWins,
+                referenceImageEnabled: useReferenceImage
+            )
+        }
+
+        // A/B test (optional)
+        var abTest: TestHarnessExport.ABTest?
+        if let abTestResult {
+            let toScores = { (s: ABTestResult.MethodScores) in
+                TestHarnessExport.ABTest.MethodScores(
+                    overall: s.overall, species: s.species,
+                    appearance: s.appearance, name: s.name, verdict: s.verdict
+                )
+            }
+            let pages = abTestResult.perPage.map { p in
+                TestHarnessExport.ABTest.PageComparison(
+                    pageNumber: p.pageNumber,
+                    methodAPrompt: p.methodAPrompt,
+                    methodBPrompt: p.methodBPrompt,
+                    aHasSpecies: p.aHasSpecies,
+                    bHasSpecies: p.bHasSpecies,
+                    aHasAppearance: p.aHasAppearance,
+                    bHasAppearance: p.bHasAppearance
+                )
+            }
+            var imageResults: TestHarnessExport.ABTest.ImageResults?
+            if !abImagesA.isEmpty || !abImagesB.isEmpty {
+                imageResults = TestHarnessExport.ABTest.ImageResults(
+                    methodASuccessCount: abImagesA.count,
+                    methodBSuccessCount: abImagesB.count,
+                    totalPerMethod: abTestResult.perPage.count
+                )
+            }
+
+            abTest = TestHarnessExport.ABTest(
+                methodA: toScores(abTestResult.methodA),
+                methodB: toScores(abTestResult.methodB),
+                methodBCharacterDescriptions: abTestResult.methodBCharacterDescriptions,
+                perPage: pages,
+                imageResults: imageResults
             )
         }
 
         let export = TestHarnessExport(
             metadata: metadata,
             llmTest: llmTest,
+            parsingTest: parsingTest,
             promptTest: promptTest,
             analysisTest: analysisTest,
-            imageTest: imageTest
+            imageTest: imageTest,
+            abTest: abTest
         )
 
         let encoder = JSONEncoder()
@@ -1219,6 +2083,39 @@ struct PromptTestPageResult: Identifiable {
     let variants: [IllustrationGenerator.PromptVariantInfo]
 }
 
+struct ParsingTestResult {
+    let characterDescriptions: String
+    let regexParsed: [ImagePromptEnricher.CharacterEntry]
+    let foundationModelParsed: [ImagePromptEnricher.CharacterEntry]
+    let foundationModelUsed: Bool
+}
+
+struct ABTestResult {
+    let methodA: MethodScores
+    let methodB: MethodScores
+    let methodBCharacterDescriptions: String
+    let perPage: [PageComparison]
+
+    struct MethodScores {
+        let overall: Double
+        let species: Double
+        let appearance: Double
+        let name: Double
+        let verdict: String
+    }
+
+    struct PageComparison: Identifiable {
+        var id: Int { pageNumber }
+        let pageNumber: Int
+        let methodAPrompt: String
+        let methodBPrompt: String
+        let aHasSpecies: Bool
+        let bHasSpecies: Bool
+        let aHasAppearance: Bool
+        let bHasAppearance: Bool
+    }
+}
+
 struct AnalysisTestPageResult: Identifiable {
     let id = UUID()
     let pageLabel: String
@@ -1252,9 +2149,11 @@ private enum TestHarnessError: LocalizedError {
 private struct TestHarnessExport: Codable {
     let metadata: Metadata
     let llmTest: LLMTest
+    let parsingTest: ParsingTest?
     let promptTest: PromptTest?
     let analysisTest: AnalysisTest?
     let imageTest: ImageTest?
+    let abTest: ABTest?
 
     struct Metadata: Codable {
         let concept: String
@@ -1286,6 +2185,20 @@ private struct TestHarnessExport: Codable {
             let hasCharacterName: Bool
             let rawImagePrompt: String
             let enrichedImagePrompt: String
+        }
+    }
+
+    struct ParsingTest: Codable {
+        let foundationModelUsed: Bool
+        let validationRepaired: Bool
+        let regexParsed: [CharacterEntryExport]
+        let foundationModelParsed: [CharacterEntryExport]
+
+        struct CharacterEntryExport: Codable {
+            let name: String
+            let species: String
+            let visualSummary: String
+            let injectionPhrase: String
         }
     }
 
@@ -1340,6 +2253,39 @@ private struct TestHarnessExport: Codable {
         let successCount: Int
         let totalCount: Int
         let variantWins: [String: Int]
+        let referenceImageEnabled: Bool
+    }
+
+    struct ABTest: Codable {
+        let methodA: MethodScores
+        let methodB: MethodScores
+        let methodBCharacterDescriptions: String
+        let perPage: [PageComparison]
+        let imageResults: ImageResults?
+
+        struct MethodScores: Codable {
+            let overall: Double
+            let species: Double
+            let appearance: Double
+            let name: Double
+            let verdict: String
+        }
+
+        struct PageComparison: Codable {
+            let pageNumber: Int
+            let methodAPrompt: String
+            let methodBPrompt: String
+            let aHasSpecies: Bool
+            let bHasSpecies: Bool
+            let aHasAppearance: Bool
+            let bHasAppearance: Bool
+        }
+
+        struct ImageResults: Codable {
+            let methodASuccessCount: Int
+            let methodBSuccessCount: Int
+            let totalPerMethod: Int
+        }
     }
 }
 #endif

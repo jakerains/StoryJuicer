@@ -12,6 +12,23 @@ export interface ChangelogEntry {
 
 export const changelog: ChangelogEntry[] = [
   {
+    version: "1.7.1",
+    date: "2026-02-21",
+    title: "Two-Pass Story Generation",
+    changes: [
+      {
+        type: "changed",
+        description:
+          "All text generators (Foundation Models, MLX, Cloud) now use two-pass generation — the AI writes the complete story first, then creates illustration prompts with full narrative context, producing more visually consistent and higher-quality image descriptions",
+      },
+      {
+        type: "changed",
+        description:
+          "Image prompts now reference earlier and later scenes in the story, so illustrations tell a cohesive visual narrative instead of treating each page in isolation",
+      },
+    ],
+  },
+  {
     version: "1.7.0",
     date: "2026-02-21",
     title: "Multi-Character Intelligence & Issue Reporting",

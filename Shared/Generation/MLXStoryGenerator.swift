@@ -101,48 +101,93 @@ struct MLXStoryGenerator: StoryTextGenerating, Sendable {
             }
         }
 
-        await onProgress("MLX model loaded. Drafting story…")
+        // ── Pass 1: Generate story text (no image prompts) ──
+        await onProgress("MLX model loaded. Drafting story text…")
 
-        let userInput = UserInput(
+        let pass1Input = UserInput(
             chat: [
                 .system(StoryPromptTemplates.jsonModeSystemInstructions),
-                .user(StoryPromptTemplates.userPrompt(concept: safeConcept, pageCount: pageCount))
+                .user(StoryPromptTemplates.textOnlyJSONPrompt(concept: safeConcept, pageCount: pageCount))
             ]
         )
 
-        let lmInput = try await container.prepare(input: userInput)
-        let parameters = GenerateParameters(
+        let pass1LMInput = try await container.prepare(input: pass1Input)
+        let pass1Params = GenerateParameters(
             maxTokens: GenerationConfig.maximumResponseTokens(for: pageCount),
             temperature: Float(GenerationConfig.defaultTemperature)
         )
-        let stream = try await container.generate(
-            input: lmInput,
-            parameters: parameters
+        let pass1Stream = try await container.generate(
+            input: pass1LMInput,
+            parameters: pass1Params
         )
 
-        var fullText = ""
+        var pass1Text = ""
         var hasReportedDraftingState = false
-        var iterator = stream.makeAsyncIterator()
-        while let generation = await iterator.next() {
-            if Task.isCancelled {
-                throw CancellationError()
-            }
+        var pass1Iterator = pass1Stream.makeAsyncIterator()
+        while let generation = await pass1Iterator.next() {
+            if Task.isCancelled { throw CancellationError() }
             if let chunk = generation.chunk, !chunk.isEmpty {
-                fullText += chunk
+                pass1Text += chunk
                 if !hasReportedDraftingState {
                     hasReportedDraftingState = true
-                    await onProgress("Drafting pages and illustration prompts...")
+                    await onProgress("Drafting story text...")
                 }
             }
         }
 
-        let trimmed = fullText.trimmingCharacters(in: .whitespacesAndNewlines)
-        guard !trimmed.isEmpty else {
+        let pass1Trimmed = pass1Text.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !pass1Trimmed.isEmpty else {
             throw MLXStoryGeneratorError.emptyModelResponse
         }
 
-        let dto = try StoryDecoding.decodeStoryDTO(from: trimmed)
-        let story = dto.toStoryBook(
+        let textDTO = try StoryDecoding.decodeTextOnlyStoryDTO(from: pass1Trimmed)
+
+        // ── Pass 2: Generate image prompts with full story context ──
+        await onProgress("Writing illustration prompts...")
+
+        let pages = textDTO.pages.map { (pageNumber: $0.pageNumber, text: $0.text) }
+        let pass2Prompt = StoryPromptTemplates.imagePromptJSONPrompt(
+            characterDescriptions: textDTO.characterDescriptions ?? "",
+            pages: pages
+        )
+
+        let pass2Input = UserInput(
+            chat: [
+                .system("You are an art director for a children's storybook. Respond with valid JSON only — no extra text."),
+                .user(pass2Prompt)
+            ]
+        )
+
+        let pass2LMInput = try await container.prepare(input: pass2Input)
+        let pass2Params = GenerateParameters(
+            maxTokens: 600,
+            temperature: Float(GenerationConfig.defaultTemperature)
+        )
+        let pass2Stream = try await container.generate(
+            input: pass2LMInput,
+            parameters: pass2Params
+        )
+
+        var pass2Text = ""
+        var pass2Iterator = pass2Stream.makeAsyncIterator()
+        while let generation = await pass2Iterator.next() {
+            if Task.isCancelled { throw CancellationError() }
+            if let chunk = generation.chunk, !chunk.isEmpty {
+                pass2Text += chunk
+            }
+        }
+
+        let pass2Trimmed = pass2Text.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !pass2Trimmed.isEmpty else {
+            throw MLXStoryGeneratorError.emptyModelResponse
+        }
+
+        let promptSheet = try StoryDecoding.decodeImagePromptSheetDTO(from: pass2Trimmed)
+
+        // ── Merge text + prompts into a StoryBook ──
+        let story = StoryDecoding.mergeIntoStoryBook(
+            textDTO: textDTO,
+            promptSheet: promptSheet,
             pageCount: pageCount,
             fallbackConcept: safeConcept
         )

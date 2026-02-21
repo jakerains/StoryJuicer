@@ -43,46 +43,71 @@ struct CloudTextGenerator: StoryTextGenerating {
         let modelID = textModelID(from: settings)
         let safeConcept = ContentSafetyPolicy.sanitizeConcept(concept)
 
-        await onProgress("Generating story with \(cloudProvider.displayName)...")
-
         Self.logger.info("Starting cloud text generation: provider=\(cloudProvider.rawValue, privacy: .public) model=\(modelID, privacy: .public)")
 
-        let responseText: String
+        // ── Pass 1: Generate story text (no image prompts) ──
+        await onProgress("Generating story text with \(cloudProvider.displayName)...")
+
+        let pass1Text: String
 
         if cloudProvider == .huggingFace {
-            // Use official HuggingFace SDK
-            responseText = try await generateWithHFSDK(
+            pass1Text = try await chatWithHFSDK(
                 apiKey: apiKey,
                 model: modelID,
-                concept: safeConcept,
-                pageCount: pageCount
+                systemPrompt: StoryPromptTemplates.jsonModeSystemInstructions,
+                userPrompt: StoryPromptTemplates.textOnlyJSONPrompt(concept: safeConcept, pageCount: pageCount),
+                maxTokens: GenerationConfig.maximumResponseTokens(for: pageCount) * 2
             )
         } else {
-            // Use OpenAI-compatible client for OpenRouter / Together AI
-            let data = try await client.chatCompletion(
-                url: cloudProvider.chatCompletionURL,
+            pass1Text = try await chatWithOpenAIClient(
                 apiKey: apiKey,
                 model: modelID,
-                systemPrompt: StoryPromptTemplates.systemInstructions,
-                userPrompt: StoryPromptTemplates.userPrompt(concept: safeConcept, pageCount: pageCount),
-                temperature: 0.7,
-                maxTokens: GenerationConfig.maximumResponseTokens(for: pageCount) * 2,
-                extraHeaders: cloudProvider.extraHeaders
+                systemPrompt: StoryPromptTemplates.jsonModeSystemInstructions,
+                userPrompt: StoryPromptTemplates.textOnlyJSONPrompt(concept: safeConcept, pageCount: pageCount),
+                maxTokens: GenerationConfig.maximumResponseTokens(for: pageCount) * 2
             )
-            // Extract text content from OpenAI-compatible response
-            if let text = StoryDecoding.extractTextContent(from: data) {
-                responseText = text
-            } else if let rawText = String(data: data, encoding: .utf8) {
-                responseText = rawText
-            } else {
-                throw CloudProviderError.unparsableResponse
-            }
         }
 
+        let textDTO = try StoryDecoding.decodeTextOnlyStoryDTO(from: pass1Text)
+
+        // ── Pass 2: Generate image prompts with full story context ──
+        await onProgress("Generating illustration prompts...")
+
+        let pages = textDTO.pages.map { (pageNumber: $0.pageNumber, text: $0.text) }
+        let pass2UserPrompt = StoryPromptTemplates.imagePromptJSONPrompt(
+            characterDescriptions: textDTO.characterDescriptions ?? "",
+            pages: pages
+        )
+        let pass2System = "You are an art director for a children's storybook. Respond with valid JSON only — no extra text."
+
+        let pass2Text: String
+
+        if cloudProvider == .huggingFace {
+            pass2Text = try await chatWithHFSDK(
+                apiKey: apiKey,
+                model: modelID,
+                systemPrompt: pass2System,
+                userPrompt: pass2UserPrompt,
+                maxTokens: 600
+            )
+        } else {
+            pass2Text = try await chatWithOpenAIClient(
+                apiKey: apiKey,
+                model: modelID,
+                systemPrompt: pass2System,
+                userPrompt: pass2UserPrompt,
+                maxTokens: 600
+            )
+        }
+
+        let promptSheet = try StoryDecoding.decodeImagePromptSheetDTO(from: pass2Text)
+
+        // ── Merge text + prompts into a StoryBook ──
         await onProgress("Parsing story response...")
 
-        let dto = try StoryDecoding.decodeStoryDTO(from: responseText)
-        let story = dto.toStoryBook(
+        let story = StoryDecoding.mergeIntoStoryBook(
+            textDTO: textDTO,
+            promptSheet: promptSheet,
             pageCount: pageCount,
             fallbackConcept: safeConcept
         )
@@ -97,27 +122,27 @@ struct CloudTextGenerator: StoryTextGenerating {
 
     // MARK: - HuggingFace SDK Path
 
-    private func generateWithHFSDK(
+    private func chatWithHFSDK(
         apiKey: String,
         model: String,
-        concept: String,
-        pageCount: Int
+        systemPrompt: String,
+        userPrompt: String,
+        maxTokens: Int
     ) async throws -> String {
         let hfClient = InferenceClient(host: InferenceClient.defaultHost, bearerToken: apiKey)
 
         let messages: [ChatCompletion.Message] = [
-            .init(role: .system, content: .text(StoryPromptTemplates.systemInstructions)),
-            .init(role: .user, content: .text(StoryPromptTemplates.userPrompt(concept: concept, pageCount: pageCount)))
+            .init(role: .system, content: .text(systemPrompt)),
+            .init(role: .user, content: .text(userPrompt))
         ]
 
         let response = try await hfClient.chatCompletion(
             model: model,
             messages: messages,
             temperature: 0.7,
-            maxTokens: GenerationConfig.maximumResponseTokens(for: pageCount) * 2
+            maxTokens: maxTokens
         )
 
-        // Extract text from the first choice
         guard let choice = response.choices.first else {
             throw CloudProviderError.unparsableResponse
         }
@@ -132,6 +157,35 @@ struct CloudTextGenerator: StoryTextGenerating {
             }
             return textParts.joined(separator: "\n")
         case .none:
+            throw CloudProviderError.unparsableResponse
+        }
+    }
+
+    // MARK: - OpenAI-Compatible Client Path
+
+    private func chatWithOpenAIClient(
+        apiKey: String,
+        model: String,
+        systemPrompt: String,
+        userPrompt: String,
+        maxTokens: Int
+    ) async throws -> String {
+        let data = try await client.chatCompletion(
+            url: cloudProvider.chatCompletionURL,
+            apiKey: apiKey,
+            model: model,
+            systemPrompt: systemPrompt,
+            userPrompt: userPrompt,
+            temperature: 0.7,
+            maxTokens: maxTokens,
+            extraHeaders: cloudProvider.extraHeaders
+        )
+
+        if let text = StoryDecoding.extractTextContent(from: data) {
+            return text
+        } else if let rawText = String(data: data, encoding: .utf8) {
+            return rawText
+        } else {
             throw CloudProviderError.unparsableResponse
         }
     }

@@ -89,35 +89,37 @@ final class StoryGenerator {
         throw lastError ?? StoryGeneratorError.emptyResponse
     }
 
-    /// Single generation attempt with streaming progress.
+    /// Two-pass generation: story text first, then image prompts with full context.
     private func attemptGeneration(
         concept: String,
         pageCount: Int,
         onProgress: @escaping @MainActor @Sendable (String) -> Void
     ) async throws -> StoryBook {
-        let session = LanguageModelSession(
+        let safeConcept = ContentSafetyPolicy.sanitizeConcept(concept)
+
+        // ── Pass 1: Generate story text (no image prompts) ──
+        let textSession = LanguageModelSession(
             instructions: StoryPromptTemplates.systemInstructions
         )
 
-        let safeConcept = ContentSafetyPolicy.sanitizeConcept(concept)
-        let prompt = StoryPromptTemplates.structuredOutputPrompt(
+        let textPrompt = StoryPromptTemplates.textOnlyPrompt(
             concept: safeConcept,
             pageCount: pageCount
         )
 
-        let options = GenerationOptions(
+        let textOptions = GenerationOptions(
             temperature: Double(GenerationConfig.defaultTemperature),
             maximumResponseTokens: GenerationConfig.maximumResponseTokens(for: pageCount)
         )
 
-        let stream = session.streamResponse(
-            to: prompt,
-            generating: StoryBook.self,
-            options: options
+        let textStream = textSession.streamResponse(
+            to: textPrompt,
+            generating: TextOnlyStoryBook.self,
+            options: textOptions
         )
 
         // Stream partial results to show progress
-        for try await snapshot in stream {
+        for try await snapshot in textStream {
             let partial = snapshot.content
             let pages = partial.pages ?? []
             let previewText = pages.compactMap(\.text).joined(separator: "\n\n")
@@ -125,8 +127,73 @@ final class StoryGenerator {
             onProgress(previewText)
         }
 
-        let response = try await stream.collect()
-        return response.content
+        let textResponse = try await textStream.collect()
+        let textOnly = textResponse.content
+
+        // ── Pass 2: Generate image prompts with full story context ──
+        state = .generating(partialText: "Writing illustration prompts...")
+        onProgress("Writing illustration prompts...")
+
+        let pages = textOnly.pages.map { (pageNumber: $0.pageNumber, text: $0.text) }
+        let imagePromptPrompt = StoryPromptTemplates.imagePromptPassPrompt(
+            characterDescriptions: textOnly.characterDescriptions,
+            pages: pages
+        )
+
+        let artSession = LanguageModelSession(
+            instructions: "You are an art director for a children's storybook illustration team."
+        )
+
+        let promptOptions = GenerationOptions(
+            temperature: Double(GenerationConfig.defaultTemperature),
+            maximumResponseTokens: 600
+        )
+
+        let promptResponse = try await artSession.respond(
+            to: imagePromptPrompt,
+            generating: ImagePromptSheet.self,
+            options: promptOptions
+        )
+
+        let promptSheet = promptResponse.content
+
+        // ── Merge text + prompts into a StoryBook ──
+        let promptsByPage = Dictionary(
+            promptSheet.prompts.map { ($0.pageNumber, $0.imagePrompt) },
+            uniquingKeysWith: { _, last in last }
+        )
+
+        let mergedPages = textOnly.pages
+            .sorted { $0.pageNumber < $1.pageNumber }
+            .prefix(pageCount)
+            .enumerated()
+            .map { offset, page -> StoryPage in
+                let pageNumber = offset + 1
+                let prompt = promptsByPage[page.pageNumber]?
+                    .trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
+                let fallbackPrompt = ContentSafetyPolicy.safeIllustrationPrompt(
+                    "A gentle scene inspired by \(safeConcept)"
+                )
+                return StoryPage(
+                    pageNumber: pageNumber,
+                    text: page.text,
+                    imagePrompt: prompt.isEmpty ? fallbackPrompt : prompt
+                )
+            }
+
+        let validatedDescriptions = CharacterDescriptionValidator.validate(
+            descriptions: textOnly.characterDescriptions,
+            pages: mergedPages,
+            title: textOnly.title
+        )
+
+        return StoryBook(
+            title: textOnly.title,
+            authorLine: textOnly.authorLine,
+            moral: textOnly.moral,
+            characterDescriptions: validatedDescriptions,
+            pages: mergedPages
+        )
     }
 
     /// Cancel any in-progress generation.

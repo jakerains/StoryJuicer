@@ -36,6 +36,9 @@ final class CreationViewModel {
     private(set) var phase: GenerationPhase = .idle
     private(set) var storyBook: StoryBook?
     private(set) var generatedImages: [Int: CGImage] = [:]
+    /// Pre-parsed character entries from Foundation Model (Upgrade 1).
+    /// Set during `squeezeStory()`, passed to `BookReaderViewModel` for regeneration.
+    private(set) var parsedCharacters: [ImagePromptEnricher.CharacterEntry] = []
 
     // MARK: - Generators
     let storyGenerator = StoryGenerator()
@@ -113,13 +116,37 @@ final class CreationViewModel {
                     pageCount: pageCount
                 )
 
+                // Phase 1.2: Validate/repair character descriptions with Foundation Model
+                let repairedDescriptions = await CharacterDescriptionValidator.validateAsync(
+                    descriptions: rawBook.characterDescriptions,
+                    pages: rawBook.pages,
+                    title: rawBook.title
+                )
+                let descriptionRepairedBook = StoryBook(
+                    title: rawBook.title,
+                    authorLine: rawBook.authorLine,
+                    moral: rawBook.moral,
+                    characterDescriptions: repairedDescriptions,
+                    pages: rawBook.pages
+                )
+
+                // Phase 1.3: Parse character descriptions with Foundation Model
+                self.parsedCharacters = await ImagePromptEnricher.parseCharacterDescriptionsAsync(
+                    descriptionRepairedBook.characterDescriptions
+                )
+                let parsedCharacters = self.parsedCharacters
+
                 // Phase 1.5: Analyze image prompts with Foundation Model
                 let promptsToAnalyze = [(index: 0, prompt: ContentSafetyPolicy.safeCoverPrompt(
-                    title: rawBook.title, concept: safeConcept
-                ))] + rawBook.pages.map { (index: $0.pageNumber, prompt: $0.imagePrompt) }
+                    title: descriptionRepairedBook.title, concept: safeConcept
+                ))] + descriptionRepairedBook.pages.map { (index: $0.pageNumber, prompt: $0.imagePrompt) }
                 let analyses = await PromptAnalysisEngine.analyzePrompts(promptsToAnalyze)
 
-                let book = ImagePromptEnricher.enrichImagePrompts(in: rawBook, analyses: analyses)
+                let book = ImagePromptEnricher.enrichImagePrompts(
+                    in: descriptionRepairedBook,
+                    analyses: analyses,
+                    parsedCharacters: parsedCharacters
+                )
                 storyBook = book
 
                 // Phase 2: Generate illustrations
@@ -138,7 +165,8 @@ final class CreationViewModel {
                     characterDescriptions: book.characterDescriptions,
                     style: selectedStyle,
                     format: selectedFormat,
-                    analyses: analyses
+                    analyses: analyses,
+                    parsedCharacters: parsedCharacters
                 ) { [weak self] index, image in
                     guard let self else { return }
                     self.generatedImages[index] = image
@@ -177,6 +205,7 @@ final class CreationViewModel {
         cancel()
         storyBook = nil
         generatedImages = [:]
+        parsedCharacters = []
         phase = .idle
     }
 

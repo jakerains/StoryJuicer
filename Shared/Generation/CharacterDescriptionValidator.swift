@@ -1,10 +1,97 @@
 import Foundation
+import FoundationModels
 
 /// Validates and repairs character descriptions produced by small models.
 /// If the model returned empty, too short, or poorly formatted descriptions,
 /// this validator extracts character names from image prompts as a fallback.
 /// The harness does the heavy lifting — we don't rely on the model to be consistent.
 enum CharacterDescriptionValidator {
+
+    /// Whether the last `validateAsync` call used Foundation Model repair.
+    /// Reset each call — lets the test harness show a "FM Repaired" indicator.
+    @MainActor static var lastRepairUsedFoundationModel = false
+
+    // MARK: - Async Validation (Upgrade 2)
+
+    /// Async validation that uses Foundation Model to repair inadequate descriptions.
+    /// Falls back to the existing sync `validate()` if Foundation Model is unavailable.
+    static func validateAsync(
+        descriptions: String,
+        pages: [StoryPage],
+        title: String
+    ) async -> String {
+        let cleaned = normalize(descriptions)
+
+        await MainActor.run { lastRepairUsedFoundationModel = false }
+
+        // If already adequate, return as-is
+        if isAdequate(cleaned) {
+            return cleaned
+        }
+
+        // Try Foundation Model repair
+        if let repaired = await repairWithFoundationModel(pages: pages, title: title) {
+            let normalized = normalize(repaired)
+            if isAdequate(normalized) {
+                await MainActor.run { lastRepairUsedFoundationModel = true }
+                return normalized
+            }
+        }
+
+        // Fall back to sync heuristic repair
+        return validate(descriptions: descriptions, pages: pages, title: title)
+    }
+
+    /// Use Foundation Model to generate proper character descriptions from image prompts.
+    private static func repairWithFoundationModel(
+        pages: [StoryPage],
+        title: String
+    ) async -> String? {
+        guard SystemLanguageModel.default.availability == .available else {
+            return nil
+        }
+
+        let session = LanguageModelSession(
+            instructions: """
+                You are analyzing a children's storybook to identify its characters. \
+                Read the image prompts below and produce a character description sheet. \
+                Format: one line per character, "Name - species/breed, visual details". \
+                Use lowercase for species. Include colors, clothing, and one distinguishing feature. \
+                Only list characters that appear in at least two prompts. \
+                Do NOT invent details not present in the prompts.
+                """
+        )
+
+        let promptSummary = pages.prefix(8).map { page in
+            "Page \(page.pageNumber): \(page.imagePrompt)"
+        }.joined(separator: "\n")
+
+        let request = """
+            Story title: "\(title)"
+
+            Image prompts:
+            \(promptSummary)
+
+            Generate the character description sheet:
+            """
+
+        let options = GenerationOptions(
+            temperature: 0.2,
+            maximumResponseTokens: 300
+        )
+
+        do {
+            let response = try await session.respond(
+                to: request,
+                generating: RepairedCharacterDescriptions.self,
+                options: options
+            )
+            let result = response.content.descriptions.trimmingCharacters(in: .whitespacesAndNewlines)
+            return result.isEmpty ? nil : result
+        } catch {
+            return nil
+        }
+    }
 
     /// Validate character descriptions and attempt repair if inadequate.
     /// Returns the original if good, or a best-effort extraction from story content.

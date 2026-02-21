@@ -6,10 +6,10 @@ import FoundationModels
 /// one entry per visible character, just like `StoryBook.pages: [StoryPage]`.
 @Generable
 struct CharacterAnalysis: Sendable {
-    @Guide(description: "The character's species or creature type in lowercase, e.g. 'fox', 'owl', 'rabbit'")
+    @Guide(description: "The character's species, creature type, or breed in lowercase as stated in the prompt")
     var species: String
 
-    @Guide(description: "2-4 word visual appearance, e.g. 'small orange fox with green scarf'")
+    @Guide(description: "2-4 word visual appearance: size, color, and any clothing or accessories mentioned in the prompt")
     var appearance: String
 }
 
@@ -30,6 +30,41 @@ struct PromptAnalysis: Sendable {
 
     @Guide(description: "The dominant mood or atmosphere, e.g. 'warm and cozy'")
     var mood: String
+}
+
+// MARK: - Character Description Repair (Upgrade 2)
+
+/// Foundation Model output for repairing malformed or missing character descriptions.
+/// Used by `CharacterDescriptionValidator.validateAsync()` when the heuristic validator
+/// detects inadequate descriptions — the LLM generates proper "Name - species, appearance"
+/// lines from the story's image prompts.
+@Generable
+struct RepairedCharacterDescriptions: Sendable {
+    @Guide(description: "One line per character: Name - species/breed, colors, clothing, one distinguishing feature. Derived from the story's image prompts.")
+    var descriptions: String
+}
+
+// MARK: - Character Description Parsing (Upgrade 1)
+
+/// Foundation Model output for parsing character description text into structured entries.
+/// Replaces regex-based splitting on " - ", " – ", ": " with natural language understanding.
+@Generable
+struct ParsedCharacterSheet: Sendable {
+    @Guide(description: "Array of characters parsed from the text")
+    var characters: [ParsedCharacter]
+}
+
+/// A single parsed character from the character descriptions field.
+@Generable
+struct ParsedCharacter: Sendable {
+    @Guide(description: "The character's proper name")
+    var name: String
+    @Guide(description: "The character's species, breed, or creature type in lowercase")
+    var species: String
+    @Guide(description: "Comma-separated visual details: size, color, clothing, features")
+    var visualSummary: String
+    @Guide(description: "A natural English phrase for image generation describing the character's appearance, e.g. 'a brown dachshund wearing a tiny cowboy hat'")
+    var injectionPhrase: String
 }
 
 // MARK: - Convenience Accessors

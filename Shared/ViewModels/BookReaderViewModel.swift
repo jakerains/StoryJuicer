@@ -11,6 +11,10 @@ final class BookReaderViewModel {
     let illustrationStyle: IllustrationStyle
     private let illustrationGenerator: IllustrationGenerator
 
+    /// Pre-parsed character entries from Foundation Model (Upgrade 1).
+    /// Used by `regenerateImage()` to avoid re-parsing descriptions on each retry.
+    var parsedCharacters: [ImagePromptEnricher.CharacterEntry] = []
+
     /// Called after a single image is regenerated, passing (imageIndex, newImage).
     var onImageRegenerated: ((Int, CGImage) -> Void)?
 
@@ -155,21 +159,25 @@ final class BookReaderViewModel {
         guard !regeneratingPages.contains(index) else { return }
 
         let descs = storyBook.characterDescriptions
+        let chars = parsedCharacters
         let prompt: String
         if let custom = customPrompt, !custom.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
             prompt = IllustrationGenerator.enrichPromptWithCharacters(
                 ContentSafetyPolicy.safeIllustrationPrompt(custom),
-                characterDescriptions: descs
+                characterDescriptions: descs,
+                parsedCharacters: chars
             )
         } else if index == 0 {
             prompt = IllustrationGenerator.enrichPromptWithCharacters(
                 ContentSafetyPolicy.safeCoverPrompt(title: storyBook.title, concept: storyBook.moral),
-                characterDescriptions: descs
+                characterDescriptions: descs,
+                parsedCharacters: chars
             )
         } else if let page = storyBook.pages.first(where: { $0.pageNumber == index }) {
             prompt = IllustrationGenerator.enrichPromptWithCharacters(
                 page.imagePrompt,
-                characterDescriptions: descs
+                characterDescriptions: descs,
+                parsedCharacters: chars
             )
         } else {
             return
@@ -293,16 +301,19 @@ final class BookReaderViewModel {
         guard !regeneratingPages.contains(index) else { return }
 
         let descs = storyBook.characterDescriptions
+        let chars = parsedCharacters
         let prompt: String
         if index == 0 {
             prompt = IllustrationGenerator.enrichPromptWithCharacters(
                 ContentSafetyPolicy.safeCoverPrompt(title: storyBook.title, concept: storyBook.moral),
-                characterDescriptions: descs
+                characterDescriptions: descs,
+                parsedCharacters: chars
             )
         } else if let page = storyBook.pages.first(where: { $0.pageNumber == index }) {
             prompt = IllustrationGenerator.enrichPromptWithCharacters(
                 page.imagePrompt,
-                characterDescriptions: descs
+                characterDescriptions: descs,
+                parsedCharacters: chars
             )
         } else {
             return

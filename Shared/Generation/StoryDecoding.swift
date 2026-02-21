@@ -217,6 +217,133 @@ enum StoryDecoding {
         return String(text[firstBrace...lastBrace])
     }
 
+    // MARK: - Two-Pass Decoding
+
+    /// Decode a text-only story DTO (Pass 1 output — no imagePrompts).
+    static func decodeTextOnlyStoryDTO(from text: String) throws -> TextOnlyStoryDTO {
+        let trimmed = text.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !trimmed.isEmpty else {
+            throw StoryDecodingError.unparsableResponse
+        }
+
+        let decoder = JSONDecoder()
+
+        if let data = trimmed.data(using: .utf8),
+           let dto = try? decoder.decode(TextOnlyStoryDTO.self, from: data) {
+            return dto
+        }
+
+        if let jsonString = extractFirstJSONObjectString(from: trimmed),
+           let data = jsonString.data(using: .utf8),
+           let dto = try? decoder.decode(TextOnlyStoryDTO.self, from: data) {
+            return dto
+        }
+
+        if let repaired = repairTruncatedJSON(trimmed),
+           let data = repaired.data(using: .utf8),
+           let dto = try? decoder.decode(TextOnlyStoryDTO.self, from: data) {
+            return dto
+        }
+
+        if let jsonString = extractFirstJSONObjectString(from: trimmed),
+           let repaired = repairTruncatedJSON(jsonString),
+           let data = repaired.data(using: .utf8),
+           let dto = try? decoder.decode(TextOnlyStoryDTO.self, from: data) {
+            return dto
+        }
+
+        throw StoryDecodingError.unparsableResponse
+    }
+
+    /// Decode an image prompt sheet DTO (Pass 2 output — prompts only).
+    static func decodeImagePromptSheetDTO(from text: String) throws -> ImagePromptSheetDTO {
+        let trimmed = text.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !trimmed.isEmpty else {
+            throw StoryDecodingError.unparsableResponse
+        }
+
+        let decoder = JSONDecoder()
+
+        if let data = trimmed.data(using: .utf8),
+           let dto = try? decoder.decode(ImagePromptSheetDTO.self, from: data) {
+            return dto
+        }
+
+        if let jsonString = extractFirstJSONObjectString(from: trimmed),
+           let data = jsonString.data(using: .utf8),
+           let dto = try? decoder.decode(ImagePromptSheetDTO.self, from: data) {
+            return dto
+        }
+
+        if let repaired = repairTruncatedJSON(trimmed),
+           let data = repaired.data(using: .utf8),
+           let dto = try? decoder.decode(ImagePromptSheetDTO.self, from: data) {
+            return dto
+        }
+
+        if let jsonString = extractFirstJSONObjectString(from: trimmed),
+           let repaired = repairTruncatedJSON(jsonString),
+           let data = repaired.data(using: .utf8),
+           let dto = try? decoder.decode(ImagePromptSheetDTO.self, from: data) {
+            return dto
+        }
+
+        throw StoryDecodingError.unparsableResponse
+    }
+
+    /// Merge Pass 1 text + Pass 2 prompts into a complete StoryBook.
+    /// Applies the same cleanup and validation pipeline as StoryDTO.toStoryBook().
+    static func mergeIntoStoryBook(
+        textDTO: TextOnlyStoryDTO,
+        promptSheet: ImagePromptSheetDTO,
+        pageCount: Int,
+        fallbackConcept: String
+    ) -> StoryBook {
+        // Index prompts by page number for fast lookup
+        let promptsByPage = Dictionary(
+            promptSheet.prompts.map { ($0.pageNumber, $0.imagePrompt) },
+            uniquingKeysWith: { _, last in last }
+        )
+
+        let orderedPages = textDTO.pages
+            .sorted { $0.pageNumber < $1.pageNumber }
+            .prefix(pageCount)
+            .enumerated()
+            .map { offset, page -> StoryPage in
+                let pageNumber = offset + 1
+                let safeText = StoryTextCleanup.clean(page.text)
+                let prompt = promptsByPage[page.pageNumber]?
+                    .trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
+                let fallbackPrompt = ContentSafetyPolicy.safeIllustrationPrompt(
+                    "A gentle scene inspired by \(fallbackConcept)"
+                )
+
+                return StoryPage(
+                    pageNumber: pageNumber,
+                    text: safeText.isEmpty ? "A gentle moment unfolds." : safeText,
+                    imagePrompt: prompt.isEmpty ? fallbackPrompt : prompt
+                )
+            }
+
+        let cleanTitle = StoryTextCleanup.clean(textDTO.title)
+        let cleanAuthor = StoryTextCleanup.clean(textDTO.authorLine)
+        let cleanMoral = StoryTextCleanup.clean(textDTO.moral)
+
+        let validatedDescriptions = CharacterDescriptionValidator.validate(
+            descriptions: textDTO.characterDescriptions ?? "",
+            pages: orderedPages,
+            title: cleanTitle
+        )
+
+        return StoryBook(
+            title: cleanTitle.isEmpty ? "StoryFox Book" : cleanTitle,
+            authorLine: cleanAuthor.isEmpty ? "Written by StoryFox" : cleanAuthor,
+            moral: cleanMoral.isEmpty ? "Kindness and curiosity guide every adventure." : cleanMoral,
+            characterDescriptions: validatedDescriptions,
+            pages: orderedPages
+        )
+    }
+
     // MARK: - JSON Repair
 
     /// Attempt to repair truncated JSON from small models that ran out of tokens.
@@ -268,4 +395,32 @@ enum StoryDecoding {
 
         return json
     }
+}
+
+// MARK: - Two-Pass DTO Types
+
+/// Pass 1 output: story text without image prompts.
+struct TextOnlyStoryDTO: Decodable {
+    let title: String
+    let authorLine: String
+    let moral: String
+    let characterDescriptions: String?
+    let pages: [TextOnlyPageDTO]
+}
+
+/// A single page of story text without an image prompt.
+struct TextOnlyPageDTO: Decodable {
+    let pageNumber: Int
+    let text: String
+}
+
+/// Pass 2 output: image prompts only.
+struct ImagePromptSheetDTO: Decodable {
+    let prompts: [ImagePromptDTO]
+}
+
+/// A single page's image prompt from Pass 2.
+struct ImagePromptDTO: Decodable {
+    let pageNumber: Int
+    let imagePrompt: String
 }

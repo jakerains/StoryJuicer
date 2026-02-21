@@ -632,6 +632,7 @@ struct MainView: View {
                     style: viewModel.selectedStyle,
                     generator: viewModel.illustrationGenerator
                 )
+                readerVM.parsedCharacters = viewModel.parsedCharacters
                 readerVM.onImageRegenerated = { [weak readerVM] index, cgImage in
                     guard let readerVM else { return }
                     persistRegeneratedImage(index: index, image: cgImage, bookID: readerVM.storedBookID)

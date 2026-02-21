@@ -1,4 +1,5 @@
 import Foundation
+import FoundationModels
 
 /// Post-generation safety net that enriches weak image prompts with character
 /// visual descriptions parsed from the story's `characterDescriptions` field.
@@ -129,6 +130,118 @@ enum ImagePromptEnricher {
         }
 
         return result
+    }
+
+    // MARK: - Pre-Parsed Overloads (Upgrade 1)
+
+    /// Enrich all imagePrompts using pre-parsed character entries.
+    /// Skips re-parsing `characterDescriptions` — uses the Foundation Model results directly.
+    static func enrichImagePrompts(
+        in book: StoryBook,
+        analyses: [Int: PromptAnalysis],
+        parsedCharacters: [CharacterEntry]
+    ) -> StoryBook {
+        guard !parsedCharacters.isEmpty else {
+            return enrichImagePrompts(in: book, analyses: analyses)
+        }
+
+        let enrichedPages = book.pages.map { page in
+            if let analysis = analyses[page.pageNumber],
+               !analysis.characters.isEmpty {
+                let prompt = enrichPromptWithAnalysis(
+                    page.imagePrompt,
+                    analysis: analysis,
+                    characters: parsedCharacters
+                )
+                return StoryPage(
+                    pageNumber: page.pageNumber,
+                    text: page.text,
+                    imagePrompt: prompt
+                )
+            } else {
+                let enrichedPrompt = enrichPrompt(page.imagePrompt, characters: parsedCharacters)
+                return StoryPage(
+                    pageNumber: page.pageNumber,
+                    text: page.text,
+                    imagePrompt: enrichedPrompt
+                )
+            }
+        }
+
+        return StoryBook(
+            title: book.title,
+            authorLine: book.authorLine,
+            moral: book.moral,
+            characterDescriptions: book.characterDescriptions,
+            pages: enrichedPages
+        )
+    }
+
+    // MARK: - Async Parsing (Upgrade 1)
+
+    /// Parse character descriptions using Foundation Model for structured extraction.
+    /// Falls back to the existing regex-based parser if Foundation Model is unavailable.
+    static func parseCharacterDescriptionsAsync(_ descriptions: String) async -> [CharacterEntry] {
+        guard !descriptions.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty else {
+            return []
+        }
+
+        // Try Foundation Model first
+        if let parsed = await parseWithFoundationModel(descriptions) {
+            return parsed
+        }
+
+        // Fall back to regex parser
+        return parseCharacterDescriptions(descriptions)
+    }
+
+    /// Use Foundation Model to parse character descriptions into structured entries.
+    private static func parseWithFoundationModel(_ descriptions: String) async -> [CharacterEntry]? {
+        guard SystemLanguageModel.default.availability == .available else {
+            return nil
+        }
+
+        let session = LanguageModelSession(
+            instructions: """
+                You are parsing a character description sheet from a children's storybook. \
+                Extract each character's name, species/breed (lowercase), visual details, \
+                and a natural injection phrase for image generation. \
+                The injection phrase should read naturally in a sentence, e.g. \
+                "a brown dachshund wearing a tiny cowboy hat" or "a small orange fox with a green scarf". \
+                Always start the injection phrase with "a" or "an".
+                """
+        )
+
+        let request = """
+            Parse these character descriptions into structured entries:
+            "\(descriptions)"
+            """
+
+        let options = GenerationOptions(
+            temperature: 0.15,
+            maximumResponseTokens: 400
+        )
+
+        do {
+            let response = try await session.respond(
+                to: request,
+                generating: ParsedCharacterSheet.self,
+                options: options
+            )
+            let parsed = response.content.characters
+            guard !parsed.isEmpty else { return nil }
+
+            return parsed.map { pc in
+                CharacterEntry(
+                    name: pc.name.trimmingCharacters(in: .whitespacesAndNewlines),
+                    species: pc.species.lowercased().trimmingCharacters(in: .whitespacesAndNewlines),
+                    visualSummary: pc.visualSummary.trimmingCharacters(in: .whitespacesAndNewlines),
+                    injectionPhrase: pc.injectionPhrase.trimmingCharacters(in: .whitespacesAndNewlines)
+                )
+            }
+        } catch {
+            return nil
+        }
     }
 
     // MARK: - Character Parsing

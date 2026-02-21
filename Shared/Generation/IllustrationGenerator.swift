@@ -39,6 +39,11 @@ final class IllustrationGenerator {
     private(set) var activeImageProvider: StoryImageProvider?
     private(set) var variantSuccessCounts: [String: Int] = [:]
 
+    /// When true, the cover image is passed as a reference to Page 1's generation
+    /// to help anchor the character's visual appearance. When false, all pages rely
+    /// solely on the enriched text prompt — useful for A/B testing prompt quality.
+    var useReferenceImage: Bool = false
+
     /// Semantic analyses for each page, populated before image generation begins.
     /// Keyed by page index (0 = cover, 1...N = story pages).
     private var promptAnalyses: [Int: PromptAnalysis] = [:]
@@ -48,6 +53,8 @@ final class IllustrationGenerator {
     }
 
     /// Generate illustrations for all story pages concurrently with limited parallelism.
+    /// - Parameter parsedCharacters: Pre-parsed character entries from Foundation Model (Upgrade 1).
+    ///   When provided, skips re-parsing `characterDescriptions` for every prompt.
     func generateIllustrations(
         for pages: [StoryPage],
         coverPrompt: String,
@@ -55,6 +62,7 @@ final class IllustrationGenerator {
         style: IllustrationStyle,
         format: BookFormat = .standard,
         analyses: [Int: PromptAnalysis] = [:],
+        parsedCharacters: [ImagePromptEnricher.CharacterEntry] = [],
         onImageReady: @MainActor @Sendable (Int, CGImage) -> Void
     ) async throws {
         generatedImages = [:]
@@ -68,7 +76,7 @@ final class IllustrationGenerator {
 
         // Enrich prompts with character descriptions, skipping if the enricher already
         // injected species inline (avoids duplicate descriptors for ImagePlayground).
-        let enrichedCover = Self.enrichPromptWithCharacters(coverPrompt, characterDescriptions: characterDescriptions)
+        let enrichedCover = Self.enrichPromptWithCharacters(coverPrompt, characterDescriptions: characterDescriptions, parsedCharacters: parsedCharacters)
 
         let semaphore = AsyncSemaphore(limit: GenerationConfig.maxConcurrentImages)
         var completedCount = 0
@@ -98,12 +106,13 @@ final class IllustrationGenerator {
         }
 
         // Phase B: Generate page illustrations concurrently.
-        // Only pass cover as character reference for page 1 to anchor the character look.
-        // Later pages get nil — lets ImagePlayground vary composition across pages.
+        // When useReferenceImage is true, pass cover as character reference for page 1
+        // to anchor the character's visual appearance. When false, all pages rely on
+        // the enriched text prompt alone — lets you A/B test prompt quality.
         try await withThrowingTaskGroup(of: (Int, String, CGImage?).self) { group in
             for page in pages {
-                let enrichedPrompt = Self.enrichPromptWithCharacters(page.imagePrompt, characterDescriptions: characterDescriptions)
-                let refImage = (page.pageNumber == 1) ? characterReferenceImage : nil
+                let enrichedPrompt = Self.enrichPromptWithCharacters(page.imagePrompt, characterDescriptions: characterDescriptions, parsedCharacters: parsedCharacters)
+                let refImage = (useReferenceImage && page.pageNumber == 1) ? characterReferenceImage : nil
                 let pageNum = page.pageNumber
                 group.addTask { [style] in
                     await semaphore.wait()
@@ -250,8 +259,12 @@ final class IllustrationGenerator {
         let resolvedAnalysis = analysis
             ?? pageIndex.flatMap { promptAnalyses[$0] }
 
+        // Variant 0: Use async FM rewrite when unsafe content detected (Upgrade 3),
+        // otherwise falls back to sync regex sanitization
+        let safeVariant0 = await ContentSafetyPolicy.safeIllustrationPromptAsync(prompt, extendedLimit: hasCharPrefix)
+
         var promptVariants = [
-            ContentSafetyPolicy.safeIllustrationPrompt(prompt, extendedLimit: hasCharPrefix),
+            safeVariant0,
             shortenedScenePrompt(from: prompt, analysis: resolvedAnalysis),
             highReliabilityIllustrationPrompt(from: prompt, analysis: resolvedAnalysis),
             fallbackIllustrationPrompt(from: prompt, analysis: resolvedAnalysis),
@@ -592,6 +605,11 @@ final class IllustrationGenerator {
     /// models parse better than structured "Characters: ... Scene: " format.
     static func buildCharacterPrefix(from descriptions: String) -> String {
         let characters = ImagePromptEnricher.parseCharacterDescriptions(descriptions)
+        return buildCharacterPrefix(from: characters)
+    }
+
+    /// Build a character description prefix from pre-parsed character entries (Upgrade 1).
+    static func buildCharacterPrefix(from characters: [ImagePromptEnricher.CharacterEntry]) -> String {
         guard !characters.isEmpty else { return "" }
 
         // Cap at 2 characters to stay within prompt length limits
@@ -613,8 +631,14 @@ final class IllustrationGenerator {
     ///
     /// This prevents the double-descriptor bug where both the inline enricher and
     /// the prefix enricher stack on the same character descriptions.
-    static func enrichPromptWithCharacters(_ prompt: String, characterDescriptions: String) -> String {
-        let characters = ImagePromptEnricher.parseCharacterDescriptions(characterDescriptions)
+    static func enrichPromptWithCharacters(
+        _ prompt: String,
+        characterDescriptions: String,
+        parsedCharacters: [ImagePromptEnricher.CharacterEntry] = []
+    ) -> String {
+        let characters = parsedCharacters.isEmpty
+            ? ImagePromptEnricher.parseCharacterDescriptions(characterDescriptions)
+            : parsedCharacters
         guard !characters.isEmpty else { return prompt }
 
         let promptLower = prompt.lowercased()
@@ -636,7 +660,7 @@ final class IllustrationGenerator {
 
         // Prompt has no inline character descriptions (e.g. cover prompts,
         // or LLM wrote bare names) — prepend the "Featuring ..." prefix.
-        let prefix = buildCharacterPrefix(from: characterDescriptions)
+        let prefix = buildCharacterPrefix(from: characters)
         return prefix + prompt
     }
 }
