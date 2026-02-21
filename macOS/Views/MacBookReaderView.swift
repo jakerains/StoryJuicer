@@ -2,6 +2,7 @@ import SwiftUI
 
 struct MacBookReaderView: View {
     private enum ReaderSheet: String, Identifiable {
+        case storyInfo
         case pageOverview
         case pageEdit
         case reportIssue
@@ -16,6 +17,7 @@ struct MacBookReaderView: View {
     let onBackToHome: () -> Void
 
     @State private var activeSheet: ReaderSheet?
+    @State private var pageTurnState = PageTurnState()
 
     var body: some View {
         ZStack {
@@ -24,10 +26,12 @@ struct MacBookReaderView: View {
 
             VStack(spacing: StoryJuicerGlassTokens.Spacing.small) {
                 ZStack {
-                    pageContent
-                        .id(viewModel.currentPage)
-                        .transition(.push(from: viewModel.navigatingForward ? .trailing : .leading))
-                        .animation(StoryJuicerMotion.emphasis, value: viewModel.currentPage)
+                    PageTurnView(
+                        frontPage: pageSurface(for: pageTurnState.isTurning ? pageTurnState.fromPage : viewModel.currentPage),
+                        backPage: pageSurface(for: pageTurnState.isTurning ? pageTurnState.toPage : viewModel.currentPage),
+                        progress: pageTurnState.turnProgress,
+                        direction: pageTurnState.turnDirection
+                    )
 
                     navigationOverlay
                 }
@@ -39,6 +43,10 @@ struct MacBookReaderView: View {
         }
         .toolbar {
             ToolbarItemGroup(placement: .primaryAction) {
+                toolbarButton("Story Info", icon: "info.circle") {
+                    activeSheet = .storyInfo
+                }
+
                 toolbarButton("Page Overview", icon: "square.grid.2x2") {
                     activeSheet = .pageOverview
                 }
@@ -78,6 +86,15 @@ struct MacBookReaderView: View {
         }
         .sheet(item: $activeSheet) { sheet in
             switch sheet {
+            case .storyInfo:
+                StoryInfoSheet(
+                    storyBook: viewModel.storyBook,
+                    originalConcept: viewModel.originalConcept,
+                    format: viewModel.format,
+                    illustrationStyle: viewModel.illustrationStyle
+                ) {
+                    activeSheet = nil
+                }
             case .pageOverview:
                 PageOverviewGrid(viewModel: viewModel) {
                     activeSheet = nil
@@ -99,16 +116,20 @@ struct MacBookReaderView: View {
         .focusable()
         .focusEffectDisabled()
         .onKeyPress(.leftArrow) {
-            withAnimation(StoryJuicerMotion.emphasis) {
-                viewModel.previousPage()
-            }
+            viewModel.previousPage()
             return .handled
         }
         .onKeyPress(.rightArrow) {
-            withAnimation(StoryJuicerMotion.emphasis) {
-                viewModel.nextPage()
-            }
+            viewModel.nextPage()
             return .handled
+        }
+        .onAppear {
+            viewModel.onPageTurnRequested = { from, to, direction in
+                pageTurnState.beginTurn(from: from, to: to, direction: direction)
+            }
+            pageTurnState.onTurnComplete = {
+                viewModel.commitPageChange(to: pageTurnState.toPage)
+            }
         }
     }
 
@@ -132,18 +153,57 @@ struct MacBookReaderView: View {
     }
 
     @ViewBuilder
-    private var pageContent: some View {
-        if viewModel.isTitlePage {
+    private func pageContent(for pageIndex: Int) -> some View {
+        if viewModel.isTitlePage(at: pageIndex) {
             titlePage
-        } else if viewModel.isEndPage {
+        } else if viewModel.isEndPage(at: pageIndex) {
             endPage
         } else {
-            contentPage
+            contentPage(for: pageIndex)
+        }
+    }
+
+    // MARK: - Book Page Card
+
+    /// A self-contained book page card with its own paper background.
+    /// This is the unit that flips during page turn animations.
+    private func pageSurface(for pageIndex: Int) -> some View {
+        ZStack {
+            // Paper backing
+            pageBackground
+
+            // Page content
+            pageContent(for: pageIndex)
+                .padding(StoryJuicerGlassTokens.Spacing.large)
+        }
+        .frame(maxWidth: 780)
+        .frame(maxWidth: .infinity, maxHeight: .infinity)
+        .clipShape(.rect(cornerRadius: StoryJuicerGlassTokens.Radius.hero))
+        .shadow(color: .black.opacity(0.08), radius: 8, y: 4)
+    }
+
+    /// The opaque paper background for a single book page card.
+    private var pageBackground: some View {
+        ZStack {
+            LinearGradient(
+                colors: [Color.sjPaperTop, Color.sjBackground],
+                startPoint: .top,
+                endPoint: .bottom
+            )
+            PaperTextureOverlay()
+            RadialGradient(
+                colors: [Color.sjHighlight.opacity(0.16), .clear],
+                center: .top,
+                startRadius: 30,
+                endRadius: 680
+            )
         }
     }
 
     private var titlePage: some View {
         VStack(spacing: StoryJuicerGlassTokens.Spacing.large) {
+            Spacer(minLength: 0)
+
             if let coverImage = viewModel.images[0] {
                 Image(decorative: coverImage, scale: 1.0)
                     .resizable()
@@ -172,17 +232,20 @@ struct MacBookReaderView: View {
                 tint: .sjGlassSoft.opacity(StoryJuicerGlassTokens.Tint.standard),
                 cornerRadius: StoryJuicerGlassTokens.Radius.hero
             )
+
+            Spacer(minLength: 0)
         }
-        .padding(StoryJuicerGlassTokens.Spacing.xLarge)
-        .frame(maxWidth: .infinity, maxHeight: .infinity)
     }
 
-    private var contentPage: some View {
-        VStack(spacing: StoryJuicerGlassTokens.Spacing.medium) {
-            if let page = viewModel.currentStoryPage {
+    private func contentPage(for pageIndex: Int) -> some View {
+        let page = viewModel.storyPage(at: pageIndex)
+        let pageImage = viewModel.image(at: pageIndex)
+
+        return VStack(spacing: StoryJuicerGlassTokens.Spacing.medium) {
+            if let page {
                 Group {
-                    if let image = viewModel.currentImage {
-                        Image(decorative: image, scale: 1.0)
+                    if let pageImage {
+                        Image(decorative: pageImage, scale: 1.0)
                             .resizable()
                             .scaledToFit()
                             .clipShape(.rect(cornerRadius: StoryJuicerGlassTokens.Radius.card))
@@ -192,23 +255,19 @@ struct MacBookReaderView: View {
                     }
                 }
                 .frame(maxHeight: .infinity)
-                .padding(.horizontal, StoryJuicerGlassTokens.Spacing.xLarge)
-                .padding(.top, StoryJuicerGlassTokens.Spacing.large)
 
                 Text(page.text)
                     .font(StoryJuicerTypography.readerBody)
                     .foregroundStyle(Color.sjText)
                     .lineSpacing(10)
                     .multilineTextAlignment(.center)
-                    .padding(.horizontal, 72)
+                    .padding(.horizontal, 40)
                     .padding(.vertical, StoryJuicerGlassTokens.Spacing.large)
                     .frame(maxWidth: .infinity)
                     .sjGlassCard(
                         tint: .sjReadableCard.opacity(StoryJuicerGlassTokens.Tint.standard),
                         cornerRadius: StoryJuicerGlassTokens.Radius.card
                     )
-                    .padding(.horizontal, StoryJuicerGlassTokens.Spacing.xLarge)
-                    .padding(.bottom, StoryJuicerGlassTokens.Spacing.medium)
             }
         }
     }
@@ -375,6 +434,8 @@ struct MacBookReaderView: View {
 
     private var endPage: some View {
         VStack(spacing: StoryJuicerGlassTokens.Spacing.large) {
+            Spacer(minLength: 0)
+
             Image(systemName: "sparkles")
                 .font(.system(size: 50))
                 .foregroundStyle(Color.sjGold)
@@ -391,14 +452,9 @@ struct MacBookReaderView: View {
                 .padding(.horizontal, 70)
 
             storyFoxStamp
+
+            Spacer(minLength: 0)
         }
-        .padding(StoryJuicerGlassTokens.Spacing.xLarge)
-        .sjGlassCard(
-            tint: .sjGlassSoft.opacity(StoryJuicerGlassTokens.Tint.standard),
-            cornerRadius: StoryJuicerGlassTokens.Radius.hero
-        )
-        .frame(maxWidth: 780, maxHeight: .infinity)
-        .frame(maxWidth: .infinity, maxHeight: .infinity)
     }
 
     private var storyFoxStamp: some View {
@@ -415,7 +471,7 @@ struct MacBookReaderView: View {
         HStack {
             pageNavButton(
                 systemImage: "chevron.left",
-                disabled: viewModel.isFirstPage,
+                disabled: viewModel.isFirstPage || pageTurnState.isTurning,
                 action: { viewModel.previousPage() }
             )
 
@@ -423,7 +479,7 @@ struct MacBookReaderView: View {
 
             pageNavButton(
                 systemImage: "chevron.right",
-                disabled: viewModel.isLastPage,
+                disabled: viewModel.isLastPage || pageTurnState.isTurning,
                 action: { viewModel.nextPage() }
             )
         }
@@ -432,9 +488,7 @@ struct MacBookReaderView: View {
 
     private func pageNavButton(systemImage: String, disabled: Bool, action: @escaping () -> Void) -> some View {
         Button {
-            withAnimation(StoryJuicerMotion.emphasis) {
-                action()
-            }
+            action()
         } label: {
             Image(systemName: systemImage)
                 .font(.title3.weight(.bold))
@@ -477,9 +531,7 @@ struct MacBookReaderView: View {
         HStack(spacing: StoryJuicerGlassTokens.Spacing.xSmall) {
             ForEach(0..<viewModel.totalPages, id: \.self) { index in
                 Button {
-                    withAnimation(StoryJuicerMotion.emphasis) {
-                        viewModel.goToPage(index)
-                    }
+                    viewModel.goToPage(index)
                 } label: {
                     Capsule()
                         .fill(index == viewModel.currentPage ? Color.sjCoral : Color.sjBorder)

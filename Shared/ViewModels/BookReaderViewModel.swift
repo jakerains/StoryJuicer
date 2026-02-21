@@ -21,6 +21,10 @@ final class BookReaderViewModel {
     /// Called after story text is edited, passing the updated StoryBook.
     var onTextEdited: ((StoryBook) -> Void)?
 
+    /// Called when a page turn is requested. Parameters: (fromPage, toPage, direction).
+    /// The view should animate the turn and then call `commitPageChange(to:)`.
+    var onPageTurnRequested: ((Int, Int, PageTurnDirection) -> Void)?
+
     private(set) var currentPage: Int = 0
     /// Tracks whether the last page change was forward or backward, for transition direction.
     private(set) var navigatingForward: Bool = true
@@ -32,6 +36,9 @@ final class BookReaderViewModel {
     // Text regeneration state
     var regeneratingText: Set<Int> = []
     var textRegenerationErrors: [Int: String] = [:]
+
+    /// The original user concept that kicked off story generation.
+    var originalConcept: String = ""
 
     /// The UUID of the corresponding StoredStorybook, if persisted.
     var storedBookID: UUID?
@@ -93,21 +100,70 @@ final class BookReaderViewModel {
 
     func nextPage() {
         guard !isLastPage else { return }
+        let from = currentPage
+        let to = from + 1
         navigatingForward = true
-        currentPage += 1
+        if let handler = onPageTurnRequested {
+            handler(from, to, .forward)
+        } else {
+            currentPage = to
+        }
     }
 
     func previousPage() {
         guard !isFirstPage else { return }
+        let from = currentPage
+        let to = from - 1
         navigatingForward = false
-        currentPage -= 1
+        if let handler = onPageTurnRequested {
+            handler(from, to, .backward)
+        } else {
+            currentPage = to
+        }
     }
 
     func goToPage(_ page: Int) {
         guard page >= 0 && page < totalPages else { return }
-        navigatingForward = page >= currentPage
+        let from = currentPage
+        guard page != from else { return }
+        let direction: PageTurnDirection = page > from ? .forward : .backward
+        navigatingForward = direction == .forward
+        if let handler = onPageTurnRequested {
+            handler(from, page, direction)
+        } else {
+            currentPage = page
+        }
+    }
+
+    /// Commit a page change after the turn animation completes.
+    func commitPageChange(to page: Int) {
         currentPage = page
     }
+
+    // MARK: - Parameterized Page Accessors
+
+    /// The story page for a given page index, or nil if it's the title/end page.
+    func storyPage(at index: Int) -> StoryPage? {
+        guard index > 0, index < totalPages - 1 else { return nil }
+        let pageIndex = index - 1
+        guard pageIndex >= 0, pageIndex < storyBook.pages.count else { return nil }
+        return storyBook.pages[pageIndex]
+    }
+
+    /// The image for a given page index.
+    func image(at index: Int) -> CGImage? {
+        if index == 0 {
+            return images[0]
+        }
+        guard let page = storyPage(at: index) else { return nil }
+        return images[page.pageNumber]
+    }
+
+    /// Whether the given page index is the title page.
+    func isTitlePage(at index: Int) -> Bool { index == 0 }
+
+    /// Whether the given page index is the "The End" page.
+    func isEndPage(at index: Int) -> Bool { index == totalPages - 1 }
 
     // MARK: - Text Editing
 

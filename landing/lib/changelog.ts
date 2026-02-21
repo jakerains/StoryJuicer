@@ -12,6 +12,38 @@ export interface ChangelogEntry {
 
 export const changelog: ChangelogEntry[] = [
   {
+    version: "1.7.2",
+    date: "2026-02-21",
+    title: "3D Page Turn Animation",
+    changes: [
+      {
+        type: "added",
+        description:
+          "Realistic 3D page turn animation in the book reader — pages fold and lift like a real book instead of sliding between views",
+      },
+      {
+        type: "added",
+        description:
+          "Directional page turns — forward flips the current page off to reveal the next, backward folds the previous page back in from the spine",
+      },
+      {
+        type: "added",
+        description:
+          "Story Info sheet in the reader toolbar — view the original concept, format, style, characters, and full story metadata at a glance",
+      },
+      {
+        type: "changed",
+        description:
+          "Each page is now a self-contained book page card with its own paper background, so the entire surface rotates as one unit during turns",
+      },
+      {
+        type: "changed",
+        description:
+          "Original story concept is now saved with each storybook and available when reopening from the library",
+      },
+    ],
+  },
+  {
     version: "1.7.1",
     date: "2026-02-21",
     title: "Two-Pass Story Generation",

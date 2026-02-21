@@ -632,6 +632,7 @@ struct MainView: View {
                     style: viewModel.selectedStyle,
                     generator: viewModel.illustrationGenerator
                 )
+                readerVM.originalConcept = viewModel.storyConcept
                 readerVM.parsedCharacters = viewModel.parsedCharacters
                 readerVM.onImageRegenerated = { [weak readerVM] index, cgImage in
                     guard let readerVM else { return }
@@ -662,7 +663,8 @@ struct MainView: View {
             storyBook: book,
             images: viewModel.generatedImages,
             format: viewModel.selectedFormat,
-            style: viewModel.selectedStyle
+            style: viewModel.selectedStyle,
+            concept: viewModel.storyConcept
         )
         stored.displayOrder = 0
         modelContext.insert(stored)
@@ -680,6 +682,7 @@ struct MainView: View {
             style: stored.style,
             generator: IllustrationGenerator()
         )
+        readerVM.originalConcept = stored.originalConcept
         readerVM.storedBookID = stored.id
         readerVM.onImageRegenerated = { [weak readerVM] index, cgImage in
             guard let readerVM else { return }

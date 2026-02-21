@@ -21,6 +21,7 @@ final class StoredStorybook {
     var isFavorite: Bool = false
     var displayOrder: Int = 0
     var characterDescriptions: String = ""
+    var originalConcept: String = ""
 
     @Relationship(deleteRule: .cascade)
     var pages: [StoredPage]
@@ -30,6 +31,7 @@ final class StoredStorybook {
         authorLine: String,
         moral: String,
         characterDescriptions: String = "",
+        originalConcept: String = "",
         format: BookFormat,
         style: IllustrationStyle,
         coverImageData: Data? = nil,
@@ -42,6 +44,7 @@ final class StoredStorybook {
         self.authorLine = authorLine
         self.moral = moral
         self.characterDescriptions = characterDescriptions
+        self.originalConcept = originalConcept
         self.createdAt = Date()
         self.formatRawValue = format.rawValue
         self.styleRawValue = style.rawValue
@@ -84,7 +87,8 @@ extension StoredStorybook {
         storyBook: StoryBook,
         images: [Int: CGImage],
         format: BookFormat,
-        style: IllustrationStyle
+        style: IllustrationStyle,
+        concept: String = ""
     ) -> StoredStorybook {
         let coverData = images[0].flatMap { cgImageToPNGData($0) }
 
@@ -103,6 +107,7 @@ extension StoredStorybook {
             authorLine: storyBook.authorLine,
             moral: storyBook.moral,
             characterDescriptions: storyBook.characterDescriptions,
+            originalConcept: concept,
             format: format,
             style: style,
             coverImageData: coverData,
