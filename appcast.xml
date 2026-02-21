@@ -12,9 +12,9 @@
             <sparkle:version>21</sparkle:version>
             <sparkle:shortVersionString>1.7.0</sparkle:shortVersionString>
             <sparkle:minimumSystemVersion>26.0</sparkle:minimumSystemVersion>
-            <enclosure url="https://github.com/jakerains/StoryFox/releases/download/v1.7.0/StoryFox.dmg" length="32252542" type="application/octet-stream" sparkle:edSignature="HHfiWShhvrT3hc9q3htDkQIBAGknrtO5rMODttcKlTKuSDQ4+TSyshTgEUU3jt+ifvBnsGy2Xu72qSY7++jvDw=="/>
+            <enclosure url="https://github.com/jakerains/StoryFox/releases/download/v1.7.1/StoryFox.dmg" length="32308074" type="application/octet-stream" sparkle:edSignature="fe7zQ5T9Ay4lmCwETFoblu5M3CclHMfjSBn54mdGVCfi2jrFIF4JC8V0OeKJFkQleFdwH0AnI3uTDH6BC6+DBg=="/>
             <sparkle:deltas>
-                <enclosure url="https://github.com/jakerains/StoryFox/releases/download/v1.7.0/StoryFox21-11.delta" sparkle:deltaFrom="11" length="17443310" type="application/octet-stream" sparkle:deltaFromSparkleExecutableSize="860560" sparkle:deltaFromSparkleLocales="de,he,ar,el,ja,fa,uk" sparkle:edSignature="5pSVpBMmXdcWt2pxeV7fF4N9810OiqZUE5U0VSsjmbTzCJ3MNUhmqxIcbfNYWQYDbmZZQAob1HXhw+iiQtHcBA=="/>
+                <enclosure url="https://github.com/jakerains/StoryFox/releases/download/v1.7.1/StoryFox21-11.delta" sparkle:deltaFrom="11" length="17443310" type="application/octet-stream" sparkle:deltaFromSparkleExecutableSize="860560" sparkle:deltaFromSparkleLocales="de,he,ar,el,ja,fa,uk" sparkle:edSignature="5pSVpBMmXdcWt2pxeV7fF4N9810OiqZUE5U0VSsjmbTzCJ3MNUhmqxIcbfNYWQYDbmZZQAob1HXhw+iiQtHcBA=="/>
             </sparkle:deltas>
         </item>
         <item>
