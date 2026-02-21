@@ -5,6 +5,7 @@ import Foundation
 enum CreationMode: String, CaseIterable, Identifiable, Sendable {
     case quick
     case guided
+    case author
 
     var id: String { rawValue }
 
@@ -12,6 +13,7 @@ enum CreationMode: String, CaseIterable, Identifiable, Sendable {
         switch self {
         case .quick: return "Quick"
         case .guided: return "Guided"
+        case .author: return "Author"
         }
     }
 
@@ -19,6 +21,7 @@ enum CreationMode: String, CaseIterable, Identifiable, Sendable {
         switch self {
         case .quick: return "Enter your idea and go"
         case .guided: return "AI asks questions to enrich your story"
+        case .author: return "Write your own story, get AI illustrations"
         }
     }
 
@@ -26,6 +29,7 @@ enum CreationMode: String, CaseIterable, Identifiable, Sendable {
         switch self {
         case .quick: return "hare"
         case .guided: return "sparkle.magnifyingglass"
+        case .author: return "pencil.and.outline"
         }
     }
 }

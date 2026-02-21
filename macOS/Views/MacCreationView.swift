@@ -23,56 +23,84 @@ struct MacCreationView: View {
 
                     titleLine
 
+                    // Controls row — always visible, right under the title
+                    controlsRow
+                        .padding(.top, StoryJuicerGlassTokens.Spacing.large)
+
                     if case .failed(let message) = viewModel.phase {
                         ErrorBanner(
                             message: message,
-                            onRetry: { viewModel.squeezeStory() },
+                            onRetry: {
+                                if creationMode == .author {
+                                    viewModel.illustrateAuthorStory()
+                                } else {
+                                    viewModel.squeezeStory()
+                                }
+                            },
                             onDismiss: { viewModel.reset() }
                         )
                         .padding(.top, StoryJuicerGlassTokens.Spacing.large)
                     }
 
-                    conceptSection
-                        .padding(.top, StoryJuicerGlassTokens.Spacing.xLarge)
+                    if creationMode == .author {
+                        // Author Mode: page-by-page story editor
+                        AuthorStoryEditor(viewModel: viewModel)
+                            .padding(.top, StoryJuicerGlassTokens.Spacing.medium)
+                            .transition(.opacity.combined(with: .scale(scale: 0.98, anchor: .top)))
 
-                    // Q&A flow when guided mode is active and running
-                    if creationMode == .guided && qaViewModel.phase != .idle {
-                        StoryQAFlowView(
-                            viewModel: qaViewModel,
-                            onComplete: { enrichedConcept in
-                                viewModel.storyConcept = enrichedConcept
-                                viewModel.isEnrichedConcept = true
-                                viewModel.squeezeStory()
-                            },
-                            onCancel: {
-                                qaViewModel.cancel()
-                                withAnimation(StoryJuicerMotion.standard) {
-                                    creationMode = .quick
-                                }
-                            }
-                        )
-                        .padding(.top, StoryJuicerGlassTokens.Spacing.large)
-                    }
-
-                    if creationMode == .quick {
-                        SqueezeButton(isEnabled: viewModel.canGenerate) {
-                            viewModel.squeezeStory()
-                        }
-                        .padding(.top, StoryJuicerGlassTokens.Spacing.large)
-                    } else if qaViewModel.phase == .idle {
                         SqueezeButton(
-                            title: "Explore Your Story",
-                            subtitle: "AI will ask questions to enrich your concept",
-                            icon: "sparkle.magnifyingglass",
-                            isEnabled: viewModel.canGenerate
+                            title: "Illustrate My Story",
+                            subtitle: "Generate illustrations for your pages",
+                            icon: "paintbrush.pointed.fill",
+                            isEnabled: viewModel.canIllustrateAuthorStory
                         ) {
-                            qaViewModel.startQA(concept: viewModel.storyConcept)
+                            viewModel.illustrateAuthorStory()
                         }
                         .padding(.top, StoryJuicerGlassTokens.Spacing.large)
+                    } else {
+                        conceptSection
+                            .padding(.top, StoryJuicerGlassTokens.Spacing.medium)
+
+                        // Q&A flow when guided mode is active and running
+                        if creationMode == .guided && qaViewModel.phase != .idle {
+                            StoryQAFlowView(
+                                viewModel: qaViewModel,
+                                onComplete: { enrichedConcept in
+                                    viewModel.storyConcept = enrichedConcept
+                                    viewModel.isEnrichedConcept = true
+                                    viewModel.squeezeStory()
+                                },
+                                onCancel: {
+                                    qaViewModel.cancel()
+                                    withAnimation(StoryJuicerMotion.standard) {
+                                        creationMode = .quick
+                                    }
+                                }
+                            )
+                            .padding(.top, StoryJuicerGlassTokens.Spacing.large)
+                        }
+
+                        if creationMode == .quick {
+                            SqueezeButton(isEnabled: viewModel.canGenerate) {
+                                viewModel.squeezeStory()
+                            }
+                            .padding(.top, StoryJuicerGlassTokens.Spacing.large)
+                        } else if creationMode == .guided && qaViewModel.phase == .idle {
+                            SqueezeButton(
+                                title: "Explore Your Story",
+                                subtitle: "AI will ask questions to enrich your concept",
+                                icon: "sparkle.magnifyingglass",
+                                isEnabled: viewModel.canGenerate
+                            ) {
+                                qaViewModel.startQA(concept: viewModel.storyConcept)
+                            }
+                            .padding(.top, StoryJuicerGlassTokens.Spacing.large)
+                        }
                     }
                 }
                 .padding(.horizontal, StoryJuicerGlassTokens.Spacing.xLarge + 8)
                 .padding(.vertical, StoryJuicerGlassTokens.Spacing.xLarge)
+                .animation(StoryJuicerMotion.emphasis, value: creationMode)
             }
 
             if let reason = viewModel.unavailabilityReason {
@@ -82,6 +110,12 @@ struct MacCreationView: View {
         .onAppear {
             withAnimation(StoryJuicerMotion.emphasis) {
                 animateTitle = true
+            }
+        }
+        .onChange(of: creationMode) { _, newMode in
+            if newMode == .author && viewModel.authorPages.allSatisfy(\.isEmpty) {
+                // Seed 4 empty pages when first entering author mode
+                viewModel.authorPages = ["", "", "", ""]
             }
         }
     }
@@ -142,7 +176,7 @@ struct MacCreationView: View {
                         )
                 }
             }
-            .padding(.bottom, StoryJuicerGlassTokens.Spacing.large)
+            .padding(.bottom, StoryJuicerGlassTokens.Spacing.xSmall)
     }
 
     // All sparkles — floating accents around the image + twinkling background dots
@@ -179,7 +213,7 @@ struct MacCreationView: View {
 
     private var titleLine: some View {
         Text("What story shall we create?")
-            .font(StoryJuicerTypography.sectionHero)
+            .font(.system(size: 40, weight: .bold, design: .serif))
             .foregroundStyle(
                 LinearGradient(
                     colors: [Color.sjCoral, Color.sjGold, Color.sjHighlight, Color.sjCoral],
@@ -189,21 +223,21 @@ struct MacCreationView: View {
             )
             .overlay(alignment: .topTrailing) {
                 Image(systemName: "sparkle")
-                    .font(.system(size: 12, weight: .bold))
+                    .font(.system(size: 14, weight: .bold))
                     .foregroundStyle(Color.sjGold.opacity(0.8))
                     .symbolEffect(.breathe.pulse, options: .repeating.speed(0.5))
-                    .offset(x: 8, y: -6)
+                    .offset(x: 10, y: -8)
             }
             .overlay(alignment: .bottomLeading) {
                 Image(systemName: "sparkle")
-                    .font(.system(size: 10, weight: .bold))
+                    .font(.system(size: 11, weight: .bold))
                     .foregroundStyle(Color.sjGold.opacity(0.6))
                     .symbolEffect(.breathe.pulse, options: .repeating.speed(0.4))
-                    .offset(x: -6, y: 4)
+                    .offset(x: -8, y: 5)
             }
             .frame(maxWidth: .infinity, alignment: .center)
+            .offset(y: -14)
             .opacity(animateTitle ? 1 : 0)
-            .offset(y: animateTitle ? 0 : 8)
     }
 
     // MARK: - Concept Input
@@ -211,6 +245,19 @@ struct MacCreationView: View {
     /// Whether the Q&A flow is actively running (not idle)
     private var isQAActive: Bool {
         creationMode == .guided && qaViewModel.phase != .idle
+    }
+
+    // MARK: - Controls Row (mode toggle + book setup)
+
+    private var controlsRow: some View {
+        HStack {
+            CreationModeToggle(selection: $creationMode)
+
+            Spacer(minLength: StoryJuicerGlassTokens.Spacing.medium)
+
+            bookSetupRow
+                .fixedSize()
+        }
     }
 
     private var conceptSection: some View {
@@ -222,15 +269,6 @@ struct MacCreationView: View {
             } else {
                 conceptEditor
                     .transition(.opacity.combined(with: .scale(scale: 0.98, anchor: .top)))
-            }
-
-            HStack {
-                CreationModeToggle(selection: $creationMode)
-
-                Spacer(minLength: StoryJuicerGlassTokens.Spacing.medium)
-
-                bookSetupRow
-                    .fixedSize()
             }
         }
         .animation(StoryJuicerMotion.emphasis, value: isQAActive)

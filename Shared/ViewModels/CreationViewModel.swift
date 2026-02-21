@@ -32,6 +32,11 @@ final class CreationViewModel {
     var selectedStyle: IllustrationStyle = .illustration
     var isEnrichedConcept: Bool = false
 
+    // MARK: - Author Mode Inputs
+    var authorTitle: String = ""
+    var authorCharacterDescriptions: String = ""
+    var authorPages: [String] = ["", "", "", ""]
+
     // MARK: - Generation State
     private(set) var phase: GenerationPhase = .idle
     private(set) var storyBook: StoryBook?
@@ -50,6 +55,13 @@ final class CreationViewModel {
 
     var canGenerate: Bool {
         !storyConcept.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
+            && !phase.isWorking
+    }
+
+    /// Whether Author Mode has enough content to generate illustrations.
+    var canIllustrateAuthorStory: Bool {
+        !authorTitle.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
+            && authorPages.contains(where: { !$0.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty })
             && !phase.isWorking
     }
 
@@ -194,6 +206,141 @@ final class CreationViewModel {
         }
     }
 
+    // MARK: - Author Mode Generation
+
+    /// Assemble a StoryBook from author-written text, generate image prompts,
+    /// run the full enrichment + illustration pipeline.
+    func illustrateAuthorStory() {
+        guard canIllustrateAuthorStory else { return }
+
+        generationTask = Task {
+            do {
+                phase = .generatingText(partialText: "Preparing your story...")
+
+                // Build pages from author input, filtering out empty pages
+                let filledPages = authorPages.enumerated().compactMap { offset, text -> (pageNumber: Int, text: String)? in
+                    let trimmed = text.trimmingCharacters(in: .whitespacesAndNewlines)
+                    guard !trimmed.isEmpty else { return nil }
+                    return (pageNumber: offset + 1, text: trimmed)
+                }
+
+                guard !filledPages.isEmpty else {
+                    phase = .failed("Please write text for at least one page.")
+                    return
+                }
+
+                let safeTitle = authorTitle.trimmingCharacters(in: .whitespacesAndNewlines)
+                let charDescriptions = authorCharacterDescriptions.trimmingCharacters(in: .whitespacesAndNewlines)
+
+                // Generate image prompts via Foundation Models (or heuristic fallback)
+                let promptSheet = try await AuthorImagePromptGenerator.generateImagePrompts(
+                    characterDescriptions: charDescriptions,
+                    pages: filledPages,
+                    onProgress: { [weak self] text in
+                        guard let self else { return }
+                        self.phase = .generatingText(partialText: text)
+                    }
+                )
+
+                // Merge author text + generated prompts into a StoryBook
+                let promptsByPage = Dictionary(
+                    promptSheet.prompts.map { ($0.pageNumber, $0.imagePrompt) },
+                    uniquingKeysWith: { _, last in last }
+                )
+
+                let storyPages = filledPages.enumerated().map { offset, page -> StoryPage in
+                    let pageNumber = offset + 1
+                    let prompt = promptsByPage[page.pageNumber]?
+                        .trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
+                    let fallbackPrompt = ContentSafetyPolicy.safeIllustrationPrompt(
+                        "A gentle children's book illustration for a story page"
+                    )
+                    return StoryPage(
+                        pageNumber: pageNumber,
+                        text: page.text,
+                        imagePrompt: prompt.isEmpty ? fallbackPrompt : prompt
+                    )
+                }
+
+                let rawBook = StoryBook(
+                    title: safeTitle,
+                    authorLine: "Written by You",
+                    moral: "",
+                    characterDescriptions: charDescriptions,
+                    pages: storyPages
+                )
+
+                // Run the same enrichment pipeline as squeezeStory()
+                let repairedDescriptions = await CharacterDescriptionValidator.validateAsync(
+                    descriptions: rawBook.characterDescriptions,
+                    pages: rawBook.pages,
+                    title: rawBook.title
+                )
+                let descriptionRepairedBook = StoryBook(
+                    title: rawBook.title,
+                    authorLine: rawBook.authorLine,
+                    moral: rawBook.moral,
+                    characterDescriptions: repairedDescriptions,
+                    pages: rawBook.pages
+                )
+
+                self.parsedCharacters = await ImagePromptEnricher.parseCharacterDescriptionsAsync(
+                    descriptionRepairedBook.characterDescriptions
+                )
+                let parsedCharacters = self.parsedCharacters
+
+                let coverPrompt = AuthorImagePromptGenerator.coverPrompt(title: safeTitle)
+                let promptsToAnalyze = [(index: 0, prompt: coverPrompt)]
+                    + descriptionRepairedBook.pages.map { (index: $0.pageNumber, prompt: $0.imagePrompt) }
+                let analyses = await PromptAnalysisEngine.analyzePrompts(promptsToAnalyze)
+
+                let book = ImagePromptEnricher.enrichImagePrompts(
+                    in: descriptionRepairedBook,
+                    analyses: analyses,
+                    parsedCharacters: parsedCharacters
+                )
+                storyBook = book
+
+                // Generate illustrations
+                let totalImages = book.pages.count + 1
+                phase = .generatingImages(completedCount: 0, totalCount: totalImages)
+                generatedImages = [:]
+
+                try await illustrationGenerator.generateIllustrations(
+                    for: book.pages,
+                    coverPrompt: coverPrompt,
+                    characterDescriptions: book.characterDescriptions,
+                    style: selectedStyle,
+                    format: selectedFormat,
+                    analyses: analyses,
+                    parsedCharacters: parsedCharacters
+                ) { [weak self] index, image in
+                    guard let self else { return }
+                    self.generatedImages[index] = image
+                    let completed = self.generatedImages.count
+                    self.phase = .generatingImages(completedCount: completed, totalCount: totalImages)
+                }
+
+                generatedImages = illustrationGenerator.generatedImages
+                phase = .complete
+
+            } catch is CancellationError {
+                phase = .idle
+            } catch let error as LanguageModelSession.GenerationError {
+                if case .guardrailViolation = error {
+                    phase = .failed(
+                        "Apple's safety filter blocked this request. "
+                        + "Please rephrase with gentler, child-friendly wording and try again."
+                    )
+                } else {
+                    phase = .failed(error.localizedDescription)
+                }
+            } catch {
+                phase = .failed(error.localizedDescription)
+            }
+        }
+    }
+
     func cancel() {
         generationTask?.cancel()
         generationTask = nil
@@ -206,6 +353,9 @@ final class CreationViewModel {
         storyBook = nil
         generatedImages = [:]
         parsedCharacters = []
+        authorTitle = ""
+        authorCharacterDescriptions = ""
+        authorPages = ["", "", "", ""]
         phase = .idle
     }
 
