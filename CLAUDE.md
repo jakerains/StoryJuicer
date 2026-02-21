@@ -197,6 +197,27 @@ Use the release script for the full automated pipeline:
 
 The script handles everything: version bump → `make dmg` → appcast generation → GitHub release → commit → push. Users on older versions are prompted automatically via Sparkle.
 
+### Post-Release Verification (IMPORTANT)
+
+**ALWAYS verify after every release.** The release script has historically failed silently (see "BSD sed" note below), shipping DMGs with stale versions. After `release.sh` finishes, run these checks before walking away:
+
+```bash
+# 1. Mount the DMG and verify the embedded version matches what you released
+hdiutil attach dist/StoryFox.dmg -nobrowse -quiet
+/usr/libexec/PlistBuddy -c "Print CFBundleShortVersionString" "/Volumes/StoryFox/StoryFox.app/Contents/Info.plist"
+/usr/libexec/PlistBuddy -c "Print CFBundleVersion" "/Volumes/StoryFox/StoryFox.app/Contents/Info.plist"
+hdiutil detach "/Volumes/StoryFox" -quiet
+
+# 2. Verify the live appcast advertises the new version
+curl -s "https://raw.githubusercontent.com/jakerains/StoryFox/main/appcast.xml" | grep -A4 '<item>' | head -5
+
+# 3. Verify generate_appcast said "Wrote 1 new update" (NOT "updated 1 existing")
+```
+
+If the DMG version is wrong or the appcast still shows the old version, the version bump didn't take effect. Fix `project.yml` manually, rebuild with `make dmg`, regenerate appcast, and re-upload.
+
+**BSD sed pitfall:** macOS ships BSD sed, which does NOT support GNU sed's `0,/pattern/` address syntax. Commands using `0,` fail silently — no error, no change. The release script now uses `awk` for first-occurrence replacement and includes a post-bump verification step. If you ever need to do first-occurrence replacement in a shell script on macOS, use `awk` instead of `sed`.
+
 ### Every Commit That Changes App Behavior
 
 **IMPORTANT:** Any commit that adds features, fixes bugs, or changes user-facing behavior MUST include these steps. Do NOT defer — do them all before considering the work "done."
@@ -205,17 +226,19 @@ The script handles everything: version bump → `make dmg` → appcast generatio
 2. **Update `landing/lib/changelog.ts`** — add or update the entry for the new version with a description of what changed (tagged as `added`, `fixed`, `changed`, or `removed`)
 3. **Update `softwareVersion`** in `landing/app/page.tsx` structured data to match the new version
 4. **Build and release the new version** — run `./scripts/release.sh <version>` to build the DMG, generate the appcast, create the GitHub release, and push. **Bumping the version in `project.yml` alone does NOT make it available to users.** The appcast only updates when a new DMG is built and `generate_appcast` runs against it. Without this step, Sparkle will say "no update available."
-5. **Landing page deploys automatically** — Vercel is git-connected, so pushing to main triggers a deploy. No manual `vercel --prod` needed.
+5. **Verify the release** — follow the Post-Release Verification steps above. Do NOT skip this.
+6. **Landing page deploys automatically** — Vercel is git-connected, so pushing to main triggers a deploy. No manual `vercel --prod` needed.
 
 **Why step 4 matters:** Sparkle compares the installed app's version against `appcast.xml` on GitHub. If you bump `project.yml` but don't rebuild the DMG and regenerate the appcast, the appcast still advertises the old version and users see "no update." The release script handles everything atomically.
 
 **Manual release steps** (if not using the script):
 1. Bump `MARKETING_VERSION` and `CURRENT_PROJECT_VERSION` in `project.yml` (macOS target only — iOS version is independent)
 2. `make dmg` — build, sign, notarize, package
-3. `make appcast` — regenerate `appcast.xml` with EdDSA signatures
-4. If appcast is missing `sparkle:edSignature`, run `make sign-update DMG=dist/StoryFox.dmg` and add it manually
-5. `gh release create v<version> dist/StoryFox.dmg` — upload to GitHub Releases
-6. Commit `project.yml`, `appcast.xml`, and `project.pbxproj`, then push to main
+3. **Verify DMG version** — mount the DMG and check `CFBundleShortVersionString` matches (see verification steps above)
+4. `make appcast` — regenerate `appcast.xml` with EdDSA signatures
+5. If appcast is missing `sparkle:edSignature`, run `make sign-update DMG=dist/StoryFox.dmg` and add it manually
+6. `gh release create v<version> dist/StoryFox.dmg` — upload to GitHub Releases
+7. Commit `project.yml`, `appcast.xml`, and `project.pbxproj`, then push to main
 
 ### Auto-Update (Sparkle 2)
 

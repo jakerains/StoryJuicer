@@ -63,9 +63,19 @@ echo "──── 1/6  Bumping version to ${VERSION} ────"
 CURRENT_BUILD=$(grep -m1 'CURRENT_PROJECT_VERSION:' project.yml | sed 's/.*"\([0-9]*\)".*/\1/')
 NEW_BUILD=$((CURRENT_BUILD + 1))
 
-# Update macOS target version (first occurrence)
-sed -i '' "0,/MARKETING_VERSION: \"[^\"]*\"/s//MARKETING_VERSION: \"${VERSION}\"/" project.yml
-sed -i '' "0,/CURRENT_PROJECT_VERSION: \"[0-9]*\"/s//CURRENT_PROJECT_VERSION: \"${NEW_BUILD}\"/" project.yml
+# Update macOS target version (first occurrence only — iOS target has its own version).
+# NOTE: BSD sed (macOS) does not support GNU's 0,/pattern/ address.
+# We use awk to replace only the first match, which works on both BSD and GNU.
+awk -v ver="$VERSION" '!done && /MARKETING_VERSION:/ { sub(/MARKETING_VERSION: "[^"]*"/, "MARKETING_VERSION: \"" ver "\""); done=1 } 1' project.yml > project.yml.tmp && mv project.yml.tmp project.yml
+awk -v build="$NEW_BUILD" '!done && /CURRENT_PROJECT_VERSION:/ { sub(/CURRENT_PROJECT_VERSION: "[0-9]*"/, "CURRENT_PROJECT_VERSION: \"" build "\""); done=1 } 1' project.yml > project.yml.tmp && mv project.yml.tmp project.yml
+
+# Verify the bump actually took effect
+VERIFY_VER=$(grep -m1 'MARKETING_VERSION:' project.yml | sed 's/.*"\([^"]*\)".*/\1/')
+VERIFY_BUILD=$(grep -m1 'CURRENT_PROJECT_VERSION:' project.yml | sed 's/.*"\([0-9]*\)".*/\1/')
+if [[ "$VERIFY_VER" != "$VERSION" || "$VERIFY_BUILD" != "$NEW_BUILD" ]]; then
+    echo "Error: Version bump failed! Expected ${VERSION}/${NEW_BUILD}, got ${VERIFY_VER}/${VERIFY_BUILD}"
+    exit 1
+fi
 
 echo "    Version: ${VERSION} (build ${NEW_BUILD})"
 echo ""
