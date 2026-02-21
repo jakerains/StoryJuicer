@@ -7,6 +7,24 @@
         <language>en</language>
         <!-- Items will be added by generate_appcast after the first Sparkle-enabled release -->
         <item>
+            <title>1.7.5</title>
+            <pubDate>Sat, 21 Feb 2026 12:10:01 -0600</pubDate>
+            <sparkle:version>27</sparkle:version>
+            <sparkle:shortVersionString>1.7.5</sparkle:shortVersionString>
+            <description><![CDATA[<h2>Version 1.7.5 — Story Info & Release Notes</h2>
+<ul>
+  <li><strong>New:</strong> Story Info now shows which AI created your story — see the text and image providers at a glance</li>
+  <li><strong>New:</strong> See the image prompt for the page you're reading in Story Info</li>
+  <li><strong>New:</strong> AI provider and model details are saved with each storybook</li>
+  <li><strong>Improved:</strong> Update dialog now shows what's new in each version</li>
+</ul>]]></description>
+            <sparkle:minimumSystemVersion>26.0</sparkle:minimumSystemVersion>
+            <enclosure url="https://github.com/jakerains/StoryFox/releases/download/v1.7.5/StoryFox.dmg" length="32439249" type="application/octet-stream" sparkle:edSignature="+haZ5JiWGSWMJGs79OpmiR/CiAGI18kPiSEwEfqZJqIyLOvQ6zvVIYJevyUvwvv48sGnDXsorNnNtkfYghV4CA=="/>
+            <sparkle:deltas>
+                <enclosure url="https://github.com/jakerains/StoryFox/releases/download/v1.7.5/StoryFox27-11.delta" sparkle:deltaFrom="11" length="17588130" type="application/octet-stream" sparkle:deltaFromSparkleExecutableSize="860560" sparkle:deltaFromSparkleLocales="de,he,ar,el,ja,fa,uk" sparkle:edSignature="SGBJQwauM0DdPOZ2e04E4vsiXriH9QpLDb2hTMMlaLk163DSOhYAEHL+/ssT815z/23qh30lPP+PX89+N/2KDw=="/>
+            </sparkle:deltas>
+        </item>
+        <item>
             <title>1.7.4</title>
             <pubDate>Sat, 21 Feb 2026 11:36:58 -0600</pubDate>
             <sparkle:version>26</sparkle:version>
@@ -37,25 +55,6 @@
             <enclosure url="https://github.com/jakerains/StoryFox/releases/download/v1.7.3/StoryFox.dmg" length="32375613" type="application/octet-stream" sparkle:edSignature="zIbYks//iMSMDskhYvMi45tALQHViYkEEi72jCnpN9F3AVmKaZlGSFEJI5CT0Qh1uk3AKP/cGYhxV73k8NaTCg=="/>
             <sparkle:deltas>
                 <enclosure url="https://github.com/jakerains/StoryFox/releases/download/v1.7.3/StoryFox24-11.delta" sparkle:deltaFrom="11" length="17537898" type="application/octet-stream" sparkle:deltaFromSparkleExecutableSize="860560" sparkle:deltaFromSparkleLocales="de,he,ar,el,ja,fa,uk" sparkle:edSignature="Wc4IWZLou412fsOGkRgG89NTuphreBSRYURUMtX9/nmrkxlbdhiq7bGhx9xfbCIlwEAtwPgwS+awThtb8imqCQ=="/>
-            </sparkle:deltas>
-        </item>
-        <item>
-            <title>1.7.2</title>
-            <pubDate>Sat, 21 Feb 2026 10:31:37 -0600</pubDate>
-            <sparkle:version>23</sparkle:version>
-            <sparkle:shortVersionString>1.7.2</sparkle:shortVersionString>
-            <description><![CDATA[<h2>Version 1.7.2 — 3D Page Turn Animation</h2>
-<ul>
-  <li><strong>New:</strong> Realistic 3D page turn animation in the book reader — pages fold and lift like a real book instead of sliding between views</li>
-  <li><strong>New:</strong> Directional page turns — forward flips the current page off to reveal the next, backward folds the previous page back in from the spine</li>
-  <li><strong>New:</strong> Story Info sheet in the reader toolbar — view the original concept, format, style, characters, and full story metadata at a glance</li>
-  <li><strong>Changed:</strong> Each page is now a self-contained book page card with its own paper background, so the entire surface rotates as one unit during turns</li>
-  <li><strong>Changed:</strong> Original story concept is now saved with each storybook and available when reopening from the library</li>
-</ul>]]></description>
-            <sparkle:minimumSystemVersion>26.0</sparkle:minimumSystemVersion>
-            <enclosure url="https://github.com/jakerains/StoryFox/releases/download/v1.7.2/StoryFox.dmg" length="33253195" type="application/octet-stream" sparkle:edSignature="m6+rJ94UIFy8OHLa8PdIp0TRbRh8u1pzYutSzogMTwdPkIu0BqE7EKmJ8JkIdQ7zhuT/2FH7WglZjI91MQjRDQ=="/>
-            <sparkle:deltas>
-                <enclosure url="https://github.com/jakerains/StoryFox/releases/download/v1.7.2/StoryFox23-11.delta" sparkle:deltaFrom="11" length="17532066" type="application/octet-stream" sparkle:deltaFromSparkleExecutableSize="860560" sparkle:deltaFromSparkleLocales="de,he,ar,el,ja,fa,uk" sparkle:edSignature="X/hSNKecTBzuGah8jfgDkpfXd1/1ri/cH6OIgCrCfRnQCpdPjpHFB2G3OGE07bIv2FrSacgN5vQkB8lXvNTZAg=="/>
             </sparkle:deltas>
         </item>
     </channel>
