@@ -36,6 +36,7 @@ struct CloudImageGenerator: StoryImageGenerating {
         style: IllustrationStyle,
         format: BookFormat,
         settings: ModelSelectionSettings,
+        referenceImage: CGImage? = nil,
         onStatus: @Sendable @escaping (String) -> Void
     ) async throws -> CGImage {
         guard let apiKey = CloudCredentialStore.bearerToken(for: cloudProvider) else {

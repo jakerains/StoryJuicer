@@ -17,6 +17,7 @@ struct DiffusersImageGenerator: StoryImageGenerating {
         style: IllustrationStyle,
         format: BookFormat,
         settings: ModelSelectionSettings,
+        referenceImage: CGImage? = nil,
         onStatus: @Sendable @escaping (String) -> Void
     ) async throws -> CGImage {
         let runtimeAlias = settings.resolvedDiffusersRuntimeAlias

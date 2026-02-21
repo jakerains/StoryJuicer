@@ -37,7 +37,11 @@ final class IllustrationGenerator {
     private(set) var lastStatusMessage: String?
     /// Tracks the actual provider used for the most recent image (reflects fallbacks).
     private(set) var activeImageProvider: StoryImageProvider?
-    private var variantSuccessCounts: [String: Int] = [:]
+    private(set) var variantSuccessCounts: [String: Int] = [:]
+
+    /// Semantic analyses for each page, populated before image generation begins.
+    /// Keyed by page index (0 = cover, 1...N = story pages).
+    private var promptAnalyses: [Int: PromptAnalysis] = [:]
 
     init(router: ImageGenerationRouter = ImageGenerationRouter()) {
         self.router = router
@@ -50,47 +54,57 @@ final class IllustrationGenerator {
         characterDescriptions: String = "",
         style: IllustrationStyle,
         format: BookFormat = .standard,
+        analyses: [Int: PromptAnalysis] = [:],
         onImageReady: @MainActor @Sendable (Int, CGImage) -> Void
     ) async throws {
         generatedImages = [:]
         lastStatusMessage = nil
         activeImageProvider = nil
         variantSuccessCounts = [:]
+        promptAnalyses = analyses
         let totalCount = pages.count + 1 // +1 for cover
         state = .generating(currentPage: 0, completedCount: 0, totalCount: totalCount)
         let sessionStart = ContinuousClock.now
 
-        // Build character prefix once, prepend to all prompts for consistency
-        let charPrefix = Self.buildCharacterPrefix(from: characterDescriptions)
-        let enrichedCover = charPrefix + coverPrompt
+        // Enrich prompts with character descriptions, skipping if the enricher already
+        // injected species inline (avoids duplicate descriptors for ImagePlayground).
+        let enrichedCover = Self.enrichPromptWithCharacters(coverPrompt, characterDescriptions: characterDescriptions)
 
         let semaphore = AsyncSemaphore(limit: GenerationConfig.maxConcurrentImages)
         var completedCount = 0
         var failedJobs: [(index: Int, prompt: String)] = []
 
-        try await withThrowingTaskGroup(of: (Int, String, CGImage?).self) { group in
-            // Cover image (index 0)
-            group.addTask { [style] in
-                await semaphore.wait()
-                defer { Task { await semaphore.signal() } }
-                do {
-                    let image = try await self.generateSingleImage(
-                        prompt: enrichedCover,
-                        style: style,
-                        format: format
-                    )
-                    return (0, enrichedCover, image)
-                } catch is CancellationError {
-                    throw CancellationError()
-                } catch {
-                    Self.logger.warning("Cover image failed in parallel pass: \(String(describing: error), privacy: .public)")
-                    return (0, enrichedCover, nil)
-                }
-            }
+        // Phase A: Generate cover first (index 0) — becomes character reference for remaining pages
+        var characterReferenceImage: CGImage?
+        do {
+            let coverImage = try await generateSingleImage(
+                prompt: enrichedCover,
+                style: style,
+                format: format,
+                pageIndex: 0
+            )
+            generatedImages[0] = coverImage
+            characterReferenceImage = coverImage
+            onImageReady(0, coverImage)
+            completedCount += 1
+            state = .generating(currentPage: 0, completedCount: completedCount, totalCount: totalCount)
+        } catch is CancellationError {
+            throw CancellationError()
+        } catch {
+            Self.logger.warning("Cover image failed in initial pass: \(String(describing: error), privacy: .public)")
+            failedJobs.append((0, enrichedCover))
+            completedCount += 1
+            state = .generating(currentPage: 0, completedCount: completedCount, totalCount: totalCount)
+        }
 
-            // Page illustrations (index = pageNumber)
+        // Phase B: Generate page illustrations concurrently.
+        // Only pass cover as character reference for page 1 to anchor the character look.
+        // Later pages get nil — lets ImagePlayground vary composition across pages.
+        try await withThrowingTaskGroup(of: (Int, String, CGImage?).self) { group in
             for page in pages {
-                let enrichedPrompt = charPrefix + page.imagePrompt
+                let enrichedPrompt = Self.enrichPromptWithCharacters(page.imagePrompt, characterDescriptions: characterDescriptions)
+                let refImage = (page.pageNumber == 1) ? characterReferenceImage : nil
+                let pageNum = page.pageNumber
                 group.addTask { [style] in
                     await semaphore.wait()
                     defer { Task { await semaphore.signal() } }
@@ -98,7 +112,9 @@ final class IllustrationGenerator {
                         let image = try await self.generateSingleImage(
                             prompt: enrichedPrompt,
                             style: style,
-                            format: format
+                            format: format,
+                            referenceImage: refImage,
+                            pageIndex: pageNum
                         )
                         return (page.pageNumber, enrichedPrompt, image)
                     } catch is CancellationError {
@@ -211,23 +227,35 @@ final class IllustrationGenerator {
 
     /// Generate a single illustration from a text prompt.
     /// Retries automatically on guardrail false positives.
-    /// - Parameter startingVariantIndex: Skip earlier variants (used by recovery passes to avoid replaying failures).
+    /// - Parameters:
+    ///   - startingVariantIndex: Skip earlier variants (used by recovery passes to avoid replaying failures).
+    ///   - referenceImage: Optional character reference image for ImagePlayground visual consistency.
+    ///   - pageIndex: The page index for looking up `PromptAnalysis` (0 = cover).
+    ///   - analysis: Optional pre-computed analysis for this prompt. If nil, falls back to positional keywords.
     func generateSingleImage(
         prompt: String,
         style: IllustrationStyle,
         format: BookFormat = .standard,
-        startingVariantIndex: Int = 0
+        startingVariantIndex: Int = 0,
+        referenceImage: CGImage? = nil,
+        pageIndex: Int? = nil,
+        analysis: PromptAnalysis? = nil
     ) async throws -> CGImage {
         var lastError: Error = IllustrationError.noImageGenerated
         lastStatusMessage = nil
         let allVariantsStart = ContinuousClock.now
-        let hasCharPrefix = prompt.hasPrefix("Characters: ")
+        let hasCharPrefix = prompt.hasPrefix("Featuring ") || prompt.hasPrefix("Characters: ")
+
+        // Resolve analysis: explicit parameter > stored analyses > nil
+        let resolvedAnalysis = analysis
+            ?? pageIndex.flatMap { promptAnalyses[$0] }
+
         var promptVariants = [
             ContentSafetyPolicy.safeIllustrationPrompt(prompt, extendedLimit: hasCharPrefix),
-            shortenedScenePrompt(from: prompt),
-            highReliabilityIllustrationPrompt(from: prompt),
-            fallbackIllustrationPrompt(from: prompt),
-            ultraSafeIllustrationPrompt(from: prompt)
+            shortenedScenePrompt(from: prompt, analysis: resolvedAnalysis),
+            highReliabilityIllustrationPrompt(from: prompt, analysis: resolvedAnalysis),
+            fallbackIllustrationPrompt(from: prompt, analysis: resolvedAnalysis),
+            ultraSafeIllustrationPrompt(from: prompt, analysis: resolvedAnalysis)
         ]
         var variantIndex = startingVariantIndex
 
@@ -243,7 +271,8 @@ final class IllustrationGenerator {
                     let outcome = try await router.generateImage(
                         prompt: variant,
                         style: style,
-                        format: format
+                        format: format,
+                        referenceImage: referenceImage
                     ) { [weak self] status in
                         Task { @MainActor in
                             self?.lastStatusMessage = status
@@ -330,45 +359,116 @@ final class IllustrationGenerator {
     }
 
     /// Split a prompt into character prefix and scene text.
-    /// Character-enriched prompts have the format "Characters: ... Scene: ..."
+    /// Supports both new "Featuring ..." format and legacy "Characters: ... Scene: ..." format.
     /// The prefix is preserved intact across all fallback variants so character
     /// consistency is never lost during retries.
     private func splitCharacterPrefix(from prompt: String) -> (prefix: String, scene: String) {
-        guard prompt.hasPrefix("Characters: "),
-              let sceneRange = prompt.range(of: ". Scene: ") else {
-            return ("", prompt)
+        // New format: "Featuring Luna, a small orange fox with a green scarf. <scene>"
+        if prompt.hasPrefix("Featuring ") {
+            // Find the end of the "Featuring ..." clause (first ". " after "Featuring")
+            if let dotRange = prompt.range(of: ". ", range: prompt.index(prompt.startIndex, offsetBy: 10)..<prompt.endIndex) {
+                let prefix = String(prompt[..<dotRange.upperBound])
+                let scene = String(prompt[dotRange.upperBound...])
+                return (prefix, scene)
+            }
         }
-        let prefix = String(prompt[..<sceneRange.upperBound])
-        let scene = String(prompt[sceneRange.upperBound...])
-        return (prefix, scene)
+
+        // Legacy format: "Characters: ... Scene: ..."
+        if prompt.hasPrefix("Characters: "),
+           let sceneRange = prompt.range(of: ". Scene: ") {
+            let prefix = String(prompt[..<sceneRange.upperBound])
+            let scene = String(prompt[sceneRange.upperBound...])
+            return (prefix, scene)
+        }
+
+        return ("", prompt)
     }
 
-    private func shortenedScenePrompt(from prompt: String) -> String {
+    private func shortenedScenePrompt(from prompt: String, analysis: PromptAnalysis? = nil) -> String {
         let (prefix, scene) = splitCharacterPrefix(from: prompt)
+        if let analysis, !analysis.characters.isEmpty {
+            let keywords = semanticKeywords(from: analysis, count: 18)
+            return prefix + keywords
+        }
         let words = extractKeywords(from: scene, count: 18)
         let sceneText = words.isEmpty ? "friendly animals in a sunny meadow" : words
         return prefix + sceneText
     }
 
-    private func highReliabilityIllustrationPrompt(from prompt: String) -> String {
+    private func highReliabilityIllustrationPrompt(from prompt: String, analysis: PromptAnalysis? = nil) -> String {
         let (prefix, scene) = splitCharacterPrefix(from: prompt)
+        if let analysis, !analysis.characters.isEmpty {
+            let keywords = semanticKeywords(from: analysis, count: 12)
+            return prefix + keywords
+        }
         let words = extractKeywords(from: scene, count: 12)
         let sceneText = words.isEmpty ? "friendly animals playing together" : words
         return prefix + sceneText
     }
 
-    private func fallbackIllustrationPrompt(from prompt: String) -> String {
+    private func fallbackIllustrationPrompt(from prompt: String, analysis: PromptAnalysis? = nil) -> String {
         let (prefix, scene) = splitCharacterPrefix(from: prompt)
+        if let analysis, !analysis.characters.isEmpty {
+            // At fallback level, use all species + scene + "cheerful scene" framing
+            let species = analysis.allSpecies
+            let sceneSetting = analysis.sceneSetting.isEmpty ? "a cheerful scene" : analysis.sceneSetting
+            return prefix + "\(species) \(sceneSetting)"
+        }
         let words = extractKeywords(from: scene, count: 8)
         let sceneText = words.isEmpty ? "happy animals in a garden" : "\(words) in a cheerful scene"
         return prefix + sceneText
     }
 
-    private func ultraSafeIllustrationPrompt(from prompt: String) -> String {
-        let (prefix, scene) = splitCharacterPrefix(from: prompt)
+    private func ultraSafeIllustrationPrompt(from prompt: String, analysis: PromptAnalysis? = nil) -> String {
+        let (prefix, _) = splitCharacterPrefix(from: prompt)
+        if let analysis, !analysis.characters.isEmpty {
+            // Species-anchored safe prompt — guarantees correct animal/character type
+            return prefix + "friendly \(analysis.allSpecies) in a colorful storybook scene, children's book illustration style"
+        }
+        let (_, scene) = splitCharacterPrefix(from: prompt)
         let words = extractKeywords(from: scene, count: 4)
         let sceneText = words.isEmpty ? "cute animals sunny day" : "\(words) sunny day"
         return prefix + sceneText
+    }
+
+    /// Build semantically-ordered keywords from a `PromptAnalysis`.
+    /// All character species come first, then appearance words distributed across
+    /// characters, then scene — so the most visually important elements survive truncation.
+    private func semanticKeywords(from analysis: PromptAnalysis, count: Int) -> String {
+        var keywords: [String] = []
+
+        // All character species first — most important for identity
+        for character in analysis.characters {
+            if !character.species.isEmpty {
+                keywords.append(character.species)
+            }
+        }
+
+        // Appearance words from each character (up to 2 per character, skip duplicates)
+        for character in analysis.characters {
+            let words = character.appearance
+                .components(separatedBy: .whitespacesAndNewlines)
+                .filter { !$0.isEmpty && !keywords.contains($0) }
+            keywords.append(contentsOf: words.prefix(2))
+        }
+
+        // Scene setting
+        let sceneWords = analysis.sceneSetting
+            .components(separatedBy: .whitespacesAndNewlines)
+            .filter { !$0.isEmpty }
+        let remaining = max(0, count - keywords.count)
+        keywords.append(contentsOf: sceneWords.prefix(remaining))
+
+        // Action if we still have room
+        if keywords.count < count, !analysis.mainAction.isEmpty {
+            let actionWords = analysis.mainAction
+                .components(separatedBy: .whitespacesAndNewlines)
+                .filter { !$0.isEmpty }
+            let actionRemaining = max(0, count - keywords.count)
+            keywords.append(contentsOf: actionWords.prefix(actionRemaining))
+        }
+
+        return keywords.prefix(count).joined(separator: " ")
     }
 
     private func extractKeywords(from text: String, count: Int) -> String {
@@ -483,16 +583,61 @@ final class IllustrationGenerator {
         generatedImages = [:]
         lastStatusMessage = nil
         variantSuccessCounts = [:]
+        promptAnalyses = [:]
         state = .idle
     }
 
     /// Build a character description prefix from the LLM-generated character sheet.
-    /// Sanitizes once and formats for prepending to image prompts.
+    /// Uses natural language ("Featuring Luna, a small orange fox...") that diffusion
+    /// models parse better than structured "Characters: ... Scene: " format.
     static func buildCharacterPrefix(from descriptions: String) -> String {
-        let trimmed = descriptions.trimmingCharacters(in: .whitespacesAndNewlines)
-        guard !trimmed.isEmpty else { return "" }
-        let sanitized = ContentSafetyPolicy.sanitizeConcept(trimmed, maxLength: 200)
-        return "Characters: \(sanitized). Scene: "
+        let characters = ImagePromptEnricher.parseCharacterDescriptions(descriptions)
+        guard !characters.isEmpty else { return "" }
+
+        // Cap at 2 characters to stay within prompt length limits
+        let featured = characters.prefix(2)
+        let phrases = featured.map { char in
+            "\(char.name), \(char.injectionPhrase)"
+        }
+
+        let prefix = "Featuring \(phrases.joined(separator: " and ")). "
+        let sanitized = ContentSafetyPolicy.sanitizeConcept(prefix, maxLength: 200)
+        return sanitized
+    }
+
+    /// Enrich a prompt with character descriptions, avoiding duplication.
+    ///
+    /// If `ImagePromptEnricher` has already injected species descriptors inline
+    /// (e.g. "Luna, a small orange fox with a green scarf, is digging..."),
+    /// the prompt is returned as-is. Otherwise, a "Featuring ..." prefix is prepended.
+    ///
+    /// This prevents the double-descriptor bug where both the inline enricher and
+    /// the prefix enricher stack on the same character descriptions.
+    static func enrichPromptWithCharacters(_ prompt: String, characterDescriptions: String) -> String {
+        let characters = ImagePromptEnricher.parseCharacterDescriptions(characterDescriptions)
+        guard !characters.isEmpty else { return prompt }
+
+        let promptLower = prompt.lowercased()
+
+        // Check which characters are mentioned by name in the prompt
+        let mentionedChars = characters.prefix(2).filter { char in
+            promptLower.contains(char.name.lowercased())
+        }
+
+        // If characters ARE mentioned and they all already have their species
+        // described inline, the enricher already handled it — skip the prefix.
+        let alreadyEnriched = !mentionedChars.isEmpty && mentionedChars.allSatisfy { char in
+            !char.species.isEmpty && promptLower.contains(char.species)
+        }
+
+        if alreadyEnriched {
+            return prompt
+        }
+
+        // Prompt has no inline character descriptions (e.g. cover prompts,
+        // or LLM wrote bare names) — prepend the "Featuring ..." prefix.
+        let prefix = buildCharacterPrefix(from: characterDescriptions)
+        return prefix + prompt
     }
 }
 
@@ -541,3 +686,46 @@ actor AsyncSemaphore {
         }
     }
 }
+
+// MARK: - Debug Variant Chain Inspection
+
+#if DEBUG
+extension IllustrationGenerator {
+    /// Information about a single prompt variant in the fallback chain.
+    struct PromptVariantInfo: Sendable {
+        let label: String
+        let text: String
+        let charCount: Int
+        let exceedsLimit: Bool
+    }
+
+    /// Build the variant chain for a prompt WITHOUT generating images.
+    /// Mirrors the logic in `generateSingleImage` but returns the variants for inspection.
+    func inspectVariantChain(
+        for prompt: String,
+        characterDescriptions: String = "",
+        analysis: PromptAnalysis? = nil
+    ) -> [PromptVariantInfo] {
+        let enrichedPrompt = Self.enrichPromptWithCharacters(prompt, characterDescriptions: characterDescriptions)
+        let hasCharPrefix = enrichedPrompt.hasPrefix("Featuring ") || enrichedPrompt.hasPrefix("Characters: ")
+        let limit = hasCharPrefix ? 300 : 180
+
+        let variants: [(label: String, text: String)] = [
+            ("sanitized", ContentSafetyPolicy.safeIllustrationPrompt(enrichedPrompt, extendedLimit: hasCharPrefix)),
+            ("shortened", shortenedScenePrompt(from: enrichedPrompt, analysis: analysis)),
+            ("highReliability", highReliabilityIllustrationPrompt(from: enrichedPrompt, analysis: analysis)),
+            ("fallback", fallbackIllustrationPrompt(from: enrichedPrompt, analysis: analysis)),
+            ("ultraSafe", ultraSafeIllustrationPrompt(from: enrichedPrompt, analysis: analysis)),
+        ]
+
+        return variants.map { v in
+            PromptVariantInfo(
+                label: v.label,
+                text: v.text,
+                charCount: v.text.count,
+                exceedsLimit: v.text.count > limit
+            )
+        }
+    }
+}
+#endif

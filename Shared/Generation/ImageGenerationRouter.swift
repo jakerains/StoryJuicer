@@ -29,11 +29,12 @@ struct ImageGenerationRouter: Sendable {
         prompt: String,
         style: IllustrationStyle,
         format: BookFormat,
+        referenceImage: CGImage? = nil,
         onStatus: @Sendable @escaping (String) -> Void
     ) async throws -> ImageGenerationOutcome {
         let settings = settingsProvider()
 
-        // Cloud image providers
+        // Cloud image providers (don't support reference images)
         if settings.imageProvider.isCloud,
            let cloudProvider = settings.imageProvider.cloudProvider {
             do {
@@ -61,6 +62,7 @@ struct ImageGenerationRouter: Sendable {
                         style: style,
                         format: format,
                         settings: settings,
+                        referenceImage: referenceImage,
                         onStatus: onStatus
                     )
                     return ImageGenerationOutcome(
@@ -73,13 +75,14 @@ struct ImageGenerationRouter: Sendable {
             }
         }
 
-        // Default: Image Playground
+        // Default: Image Playground (pass reference image for character consistency)
         do {
             let image = try await imagePlaygroundGenerator.generateImage(
                 prompt: prompt,
                 style: style,
                 format: format,
                 settings: settings,
+                referenceImage: referenceImage,
                 onStatus: onStatus
             )
             return ImageGenerationOutcome(

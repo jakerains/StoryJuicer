@@ -1,5 +1,6 @@
 import { Navigation } from "@/components/Navigation";
 import { Hero } from "@/components/Hero";
+import { AppPreview } from "@/components/AppPreview";
 import { HowItWorks } from "@/components/HowItWorks";
 import { Features } from "@/components/Features";
 import { HuggingFaceSection } from "@/components/HuggingFaceSection";
@@ -29,7 +30,7 @@ export default function Page() {
             description:
               "AI-powered illustrated children's storybooks — on your device. Generate complete storybooks with text, illustrations, and print-ready PDF export.",
             author: { "@type": "Person", name: "Jake Rains" },
-            softwareVersion: "1.6.0",
+            softwareVersion: "1.7.0",
             downloadUrl:
               "https://github.com/jakerains/StoryFox/releases/latest/download/StoryFox.dmg",
           }),
@@ -37,16 +38,29 @@ export default function Page() {
       />
       <Navigation />
       <main>
-        <Hero />
-        <HowItWorks />
-        <Features />
-        <HuggingFaceSection />
-        <StylesShowcase />
-        <BookFormats />
-        <Requirements />
-        <SafetyDisclaimer />
+        {/* Above the parallax window — opaque so it slides over the pinned preview */}
+        <div className="relative z-10 bg-[var(--sj-bg-top)]">
+          <Hero />
+        </div>
+
+        {/* Parallax window — pinned behind, revealed as hero scrolls away */}
+        <AppPreview />
+
+        {/* Below the parallax window — opaque so it slides over the pinned preview */}
+        <div className="relative z-10 bg-[var(--sj-bg-top)]">
+          <HowItWorks />
+          <Features />
+          <HuggingFaceSection />
+          <StylesShowcase />
+          <BookFormats />
+          <Requirements />
+          <SafetyDisclaimer />
+        </div>
       </main>
-      <Footer />
+      {/* Footer also needs opaque bg + z-10 so it slides over the fixed image */}
+      <div className="relative z-10 bg-[var(--sj-bg-top)]">
+        <Footer />
+      </div>
     </>
   );
 }

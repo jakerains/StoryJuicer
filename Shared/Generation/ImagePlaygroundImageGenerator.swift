@@ -24,6 +24,7 @@ struct ImagePlaygroundImageGenerator: StoryImageGenerating {
         style: IllustrationStyle,
         format: BookFormat,
         settings: ModelSelectionSettings,
+        referenceImage: CGImage? = nil,
         onStatus: @Sendable @escaping (String) -> Void
     ) async throws -> CGImage {
         let isAvailable = await MainActor.run {
@@ -42,7 +43,7 @@ struct ImagePlaygroundImageGenerator: StoryImageGenerating {
         return try await withTimeout(
             seconds: GenerationConfig.imagePlaygroundGenerationTimeoutSeconds
         ) {
-            let concepts = self.imageConcepts(for: prompt)
+            let concepts = self.imageConcepts(for: prompt, referenceImage: referenceImage)
             let images = creator.images(
                 for: concepts,
                 style: style.playgroundStyle,
@@ -78,16 +79,25 @@ struct ImagePlaygroundImageGenerator: StoryImageGenerating {
         }
     }
 
-    private func imageConcepts(for prompt: String) -> [ImagePlaygroundConcept] {
+    private func imageConcepts(for prompt: String, referenceImage: CGImage? = nil) -> [ImagePlaygroundConcept] {
+        var concepts: [ImagePlaygroundConcept] = []
+
         if prompt.count > 900 {
-            return [
+            concepts.append(
                 .extracted(
                     from: prompt,
                     title: "Child-friendly picture-book scene"
                 )
-            ]
+            )
+        } else {
+            concepts.append(.text(prompt))
         }
-        return [.text(prompt)]
+
+        if let ref = referenceImage {
+            concepts.append(.image(ref))
+        }
+
+        return concepts
     }
 }
 

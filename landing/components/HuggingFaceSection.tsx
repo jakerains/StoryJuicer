@@ -94,29 +94,6 @@ export function HuggingFaceSection() {
       <div className="glow-amber pointer-events-none absolute -right-32 top-1/3 hidden h-[500px] w-[500px] sm:block" />
 
       <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
-        {/* Header */}
-        <motion.div
-          className="mb-14 text-center"
-          initial="hidden"
-          whileInView="visible"
-          viewport={{ once: true, amount: 0.3 }}
-          variants={fadeUpVariants}
-        >
-          <div className="mb-4 inline-flex items-center rounded-full border border-sj-highlight/40 bg-sj-highlight/10 px-4 py-1.5">
-            <span className="font-sans text-sm font-semibold text-sj-gold">
-              Free Upgrade
-            </span>
-          </div>
-          <h2 className="section-title mb-4 font-serif font-bold text-sj-text">
-            Go Further with Hugging Face
-          </h2>
-          <p className="mx-auto max-w-2xl text-lg leading-relaxed text-sj-secondary">
-            StoryFox works on its own with your Mac&apos;s built-in AI. Connect
-            a free Hugging Face account to unlock better stories and sharper
-            illustrations from open models like OpenAI GPT-OSS and FLUX.1.
-          </p>
-        </motion.div>
-
         {/* Single rounded container */}
         <motion.div
           className="overflow-hidden rounded-3xl border border-sj-border/25"
@@ -125,7 +102,18 @@ export function HuggingFaceSection() {
           viewport={{ once: true, amount: 0.1 }}
           variants={staggerContainer}
         >
-          {/* Top: Why upgrade — HF logo + 4 benefit cards */}
+          {/* Banner image — full bleed at top */}
+          <motion.div variants={fadeUpVariants}>
+            <Image
+              src="/images/hf-upgrade-banner.png"
+              alt="The StoryFox fox and Hugging Face mascot sharing a glowing storybook at a cozy candlelit desk"
+              width={1536}
+              height={1024}
+              className="h-36 w-full object-cover sm:h-52 md:h-64"
+            />
+          </motion.div>
+
+          {/* Header + benefit cards */}
           <motion.div
             className="p-4 sm:p-8 md:p-10"
             style={{
@@ -133,20 +121,21 @@ export function HuggingFaceSection() {
             }}
             variants={fadeUpVariants}
           >
-            {/* Centered header with HF logo */}
-            <div className="mb-8 flex flex-col items-center gap-3">
-              <div className="shrink-0 overflow-hidden rounded-2xl shadow-lg">
-                <Image
-                  src="/images/hf-branded-logo.png"
-                  alt="Hugging Face"
-                  width={72}
-                  height={72}
-                  className="h-[72px] w-[72px] object-cover"
-                />
+            {/* Chip + heading + subheading */}
+            <div className="mb-8 text-center">
+              <div className="mb-4 inline-flex items-center rounded-full border border-sj-highlight/40 bg-sj-highlight/10 px-4 py-1.5">
+                <span className="font-sans text-sm font-semibold text-sj-gold">
+                  Free Upgrade
+                </span>
               </div>
-              <h3 className="font-serif text-xl font-semibold text-sj-text">
-                Why upgrade?
-              </h3>
+              <h2 className="section-title mb-3 font-serif font-bold text-sj-text">
+                Go Further with Hugging Face
+              </h2>
+              <p className="mx-auto max-w-2xl text-lg leading-relaxed text-sj-secondary">
+                StoryFox works on its own with your Mac&apos;s built-in AI. Connect
+                a free Hugging Face account to unlock better stories and sharper
+                illustrations from open models like OpenAI GPT-OSS and FLUX.1.
+              </p>
             </div>
 
             {/* 4 benefit cards — desktop: 4-col grid */}

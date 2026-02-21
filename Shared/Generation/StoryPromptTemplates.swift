@@ -51,10 +51,13 @@ enum StoryPromptTemplates {
         """
         Requirements:
         - Exactly \(pageCount) pages, numbered 1...\(pageCount).
-        - characterDescriptions: Describe every character's visual appearance in one line each. \
-        Be specific about colors and clothing.
-        - Each imagePrompt: Name the character first, then describe what they are doing, \
-        where, and the mood. Keep vivid and child-safe.
+        - characterDescriptions: One line per character — name, species, colors, clothing, one unique feature.
+        - CRITICAL for imagePrompt: Every imagePrompt MUST describe the character by species \
+        and appearance — not just name. Image models cannot look up who "Luna" is.
+          BAD: "Luna walking through a moonlit forest."
+          GOOD: "A small orange fox with a green scarf walks through a moonlit forest, \
+        curious expression, warm golden light."
+          Always state WHAT the character is (species/type), their COLOR, and what they WEAR.
         - Keep language warm, gentle, and easy to read aloud.
         """
     }
@@ -75,7 +78,7 @@ enum StoryPromptTemplates {
             {
               "pageNumber": 1,
               "text": "2-4 child-friendly sentences",
-              "imagePrompt": "Character name, scene action, setting, mood, colors. No text overlays."
+              "imagePrompt": "Describe character by species and appearance (not just name), then action, setting, mood, colors. Example: A small orange fox wearing a green scarf peers into a glowing tree hollow, warm golden light. No text overlays."
             }
           ]
         }
@@ -96,7 +99,9 @@ enum StoryPromptTemplates {
         Each page should have 2-4 sentences of story text and a detailed illustration prompt. \
         For characterDescriptions, list each character on one line with their name, \
         species, colors, clothing, and one unique feature. \
-        In each imagePrompt, name the character first, then describe the scene. \
+        CRITICAL: In each imagePrompt, describe the character's species and visual \
+        appearance — not just their name. An image model cannot know that "Luna" is a fox. \
+        Write "a small orange fox with a green scarf" instead of just "Luna." \
         Keep the story warm, comforting, and suitable for ages 3-8.
         """
     }

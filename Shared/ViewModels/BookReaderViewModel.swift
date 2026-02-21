@@ -154,20 +154,29 @@ final class BookReaderViewModel {
     func regenerateImage(index: Int, customPrompt: String? = nil) async {
         guard !regeneratingPages.contains(index) else { return }
 
-        let charPrefix = IllustrationGenerator.buildCharacterPrefix(from: storyBook.characterDescriptions)
+        let descs = storyBook.characterDescriptions
         let prompt: String
         if let custom = customPrompt, !custom.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
-            prompt = charPrefix + ContentSafetyPolicy.safeIllustrationPrompt(custom)
+            prompt = IllustrationGenerator.enrichPromptWithCharacters(
+                ContentSafetyPolicy.safeIllustrationPrompt(custom),
+                characterDescriptions: descs
+            )
         } else if index == 0 {
-            prompt = charPrefix + ContentSafetyPolicy.safeCoverPrompt(
-                title: storyBook.title,
-                concept: storyBook.moral
+            prompt = IllustrationGenerator.enrichPromptWithCharacters(
+                ContentSafetyPolicy.safeCoverPrompt(title: storyBook.title, concept: storyBook.moral),
+                characterDescriptions: descs
             )
         } else if let page = storyBook.pages.first(where: { $0.pageNumber == index }) {
-            prompt = charPrefix + page.imagePrompt
+            prompt = IllustrationGenerator.enrichPromptWithCharacters(
+                page.imagePrompt,
+                characterDescriptions: descs
+            )
         } else {
             return
         }
+
+        // Run single-prompt analysis for species-anchored variants
+        let analysis = await PromptAnalysisEngine.analyzeSingle(prompt: prompt)
 
         let retries = pageRetryCount[index, default: 0]
         let startVariant = min(retries + 1, 5)
@@ -181,7 +190,9 @@ final class BookReaderViewModel {
                 prompt: prompt,
                 style: illustrationStyle,
                 format: format,
-                startingVariantIndex: startVariant
+                startingVariantIndex: startVariant,
+                pageIndex: index,
+                analysis: analysis
             )
             images[index] = image
             pageRetryCount[index] = 0
@@ -281,18 +292,24 @@ final class BookReaderViewModel {
     func regeneratePage(index: Int) async {
         guard !regeneratingPages.contains(index) else { return }
 
-        let charPrefix = IllustrationGenerator.buildCharacterPrefix(from: storyBook.characterDescriptions)
+        let descs = storyBook.characterDescriptions
         let prompt: String
         if index == 0 {
-            prompt = charPrefix + ContentSafetyPolicy.safeCoverPrompt(
-                title: storyBook.title,
-                concept: storyBook.moral
+            prompt = IllustrationGenerator.enrichPromptWithCharacters(
+                ContentSafetyPolicy.safeCoverPrompt(title: storyBook.title, concept: storyBook.moral),
+                characterDescriptions: descs
             )
         } else if let page = storyBook.pages.first(where: { $0.pageNumber == index }) {
-            prompt = charPrefix + page.imagePrompt
+            prompt = IllustrationGenerator.enrichPromptWithCharacters(
+                page.imagePrompt,
+                characterDescriptions: descs
+            )
         } else {
             return
         }
+
+        // Run single-prompt analysis for species-anchored variants
+        let analysis = await PromptAnalysisEngine.analyzeSingle(prompt: prompt)
 
         // Each retry skips further into the variant list so we don't replay
         // the same prompts that already failed for this page.
@@ -308,7 +325,9 @@ final class BookReaderViewModel {
                 prompt: prompt,
                 style: illustrationStyle,
                 format: format,
-                startingVariantIndex: startVariant
+                startingVariantIndex: startVariant,
+                pageIndex: index,
+                analysis: analysis
             )
             images[index] = image
             pageRetryCount[index] = 0

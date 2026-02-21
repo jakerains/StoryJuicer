@@ -4,6 +4,8 @@ struct MacBookReaderView: View {
     private enum ReaderSheet: String, Identifiable {
         case pageOverview
         case pageEdit
+        case reportIssue
+        case safetyInfo
 
         var id: String { rawValue }
     }
@@ -37,19 +39,13 @@ struct MacBookReaderView: View {
         }
         .toolbar {
             ToolbarItemGroup(placement: .primaryAction) {
-                Button {
+                toolbarButton("Page Overview", icon: "square.grid.2x2") {
                     activeSheet = .pageOverview
-                } label: {
-                    Label("Page Overview", systemImage: "square.grid.2x2")
                 }
-                .sjGlassToolbarItem(prominent: false)
 
-                Button {
+                toolbarButton("Edit Page", icon: "slider.horizontal.3") {
                     activeSheet = .pageEdit
-                } label: {
-                    Label("Edit Page", systemImage: "slider.horizontal.3")
                 }
-                .sjGlassToolbarItem(prominent: false)
 
                 Menu {
                     Button {
@@ -66,15 +62,18 @@ struct MacBookReaderView: View {
                 } label: {
                     Label("Export", systemImage: "square.and.arrow.up")
                 }
-                .sjGlassToolbarItem(prominent: true)
+                .buttonStyle(.glassProminent)
                 .tint(Color.sjCoral)
 
-                Button {
-                    onBackToHome()
-                } label: {
-                    Label("Back to Home", systemImage: "house")
+                if !viewModel.missingImageIndices.isEmpty {
+                    toolbarButton("Report Issue", icon: "exclamationmark.bubble", tint: .sjGold) {
+                        activeSheet = .reportIssue
+                    }
                 }
-                .sjGlassToolbarItem(prominent: false)
+
+                toolbarButton("Back to Home", icon: "house") {
+                    onBackToHome()
+                }
             }
         }
         .sheet(item: $activeSheet) { sheet in
@@ -85,6 +84,14 @@ struct MacBookReaderView: View {
                 }
             case .pageEdit:
                 PageEditSheet(viewModel: viewModel) {
+                    activeSheet = nil
+                }
+            case .reportIssue:
+                ReportIssueSheet(viewModel: viewModel) {
+                    activeSheet = nil
+                }
+            case .safetyInfo:
+                SafetyInfoSheet {
                     activeSheet = nil
                 }
             }
@@ -250,20 +257,35 @@ struct MacBookReaderView: View {
                         .padding(.horizontal)
                 }
 
-                Button {
-                    Task {
-                        await viewModel.regenerateImage(index: 0)
+                HStack(spacing: StoryJuicerGlassTokens.Spacing.small) {
+                    Button {
+                        Task {
+                            await viewModel.regenerateImage(index: 0)
+                        }
+                    } label: {
+                        Label("Regenerate Cover", systemImage: "arrow.clockwise")
+                            .font(StoryJuicerTypography.settingsControl)
+                            .foregroundStyle(Color.sjCoral)
+                            .padding(.horizontal, StoryJuicerGlassTokens.Spacing.medium)
+                            .padding(.vertical, StoryJuicerGlassTokens.Spacing.small)
+                            .contentShape(Rectangle())
+                            .sjGlassChip(selected: true, interactive: true)
                     }
-                } label: {
-                    Label("Regenerate Cover", systemImage: "arrow.clockwise")
-                        .font(StoryJuicerTypography.settingsControl)
-                        .foregroundStyle(Color.sjCoral)
-                        .padding(.horizontal, StoryJuicerGlassTokens.Spacing.medium)
-                        .padding(.vertical, StoryJuicerGlassTokens.Spacing.small)
-                        .contentShape(Rectangle())
-                        .sjGlassChip(selected: true, interactive: true)
+                    .buttonStyle(.plain)
+
+                    Button {
+                        activeSheet = .safetyInfo
+                    } label: {
+                        Label("What happened?", systemImage: "questionmark.circle")
+                            .font(StoryJuicerTypography.settingsControl)
+                            .foregroundStyle(Color.sjSecondaryText)
+                            .padding(.horizontal, StoryJuicerGlassTokens.Spacing.medium)
+                            .padding(.vertical, StoryJuicerGlassTokens.Spacing.small)
+                            .contentShape(Rectangle())
+                            .sjGlassChip(selected: false, interactive: true)
+                    }
+                    .buttonStyle(.plain)
                 }
-                .buttonStyle(.plain)
                 .padding(.top, StoryJuicerGlassTokens.Spacing.xSmall)
             }
         }
@@ -311,20 +333,35 @@ struct MacBookReaderView: View {
                         .padding(.horizontal)
                 }
 
-                Button {
-                    Task {
-                        await viewModel.regenerateImage(index: page.pageNumber)
+                HStack(spacing: StoryJuicerGlassTokens.Spacing.small) {
+                    Button {
+                        Task {
+                            await viewModel.regenerateImage(index: page.pageNumber)
+                        }
+                    } label: {
+                        Label("Regenerate", systemImage: "arrow.clockwise")
+                            .font(StoryJuicerTypography.settingsControl)
+                            .foregroundStyle(Color.sjCoral)
+                            .padding(.horizontal, StoryJuicerGlassTokens.Spacing.medium)
+                            .padding(.vertical, StoryJuicerGlassTokens.Spacing.small)
+                            .contentShape(Rectangle())
+                            .sjGlassChip(selected: true, interactive: true)
                     }
-                } label: {
-                    Label("Regenerate", systemImage: "arrow.clockwise")
-                        .font(StoryJuicerTypography.settingsControl)
-                        .foregroundStyle(Color.sjCoral)
-                        .padding(.horizontal, StoryJuicerGlassTokens.Spacing.medium)
-                        .padding(.vertical, StoryJuicerGlassTokens.Spacing.small)
-                        .contentShape(Rectangle())
-                        .sjGlassChip(selected: true, interactive: true)
+                    .buttonStyle(.plain)
+
+                    Button {
+                        activeSheet = .safetyInfo
+                    } label: {
+                        Label("What happened?", systemImage: "questionmark.circle")
+                            .font(StoryJuicerTypography.settingsControl)
+                            .foregroundStyle(Color.sjSecondaryText)
+                            .padding(.horizontal, StoryJuicerGlassTokens.Spacing.medium)
+                            .padding(.vertical, StoryJuicerGlassTokens.Spacing.small)
+                            .contentShape(Rectangle())
+                            .sjGlassChip(selected: false, interactive: true)
+                    }
+                    .buttonStyle(.plain)
                 }
-                .buttonStyle(.plain)
                 .padding(.top, StoryJuicerGlassTokens.Spacing.xSmall)
             }
         }
@@ -414,6 +451,26 @@ struct MacBookReaderView: View {
         .disabled(disabled)
         .opacity(disabled ? 0.001 : 1)
         .animation(StoryJuicerMotion.fast, value: disabled)
+    }
+
+    /// Toolbar button that bypasses macOS toolbar button styling by using `.plain`
+    /// and applying a manual glass capsule, matching the Export menu's appearance.
+    private func toolbarButton(
+        _ title: String,
+        icon: String,
+        tint: Color? = nil,
+        action: @escaping () -> Void
+    ) -> some View {
+        Button(action: action) {
+            Image(systemName: icon)
+                .font(.body.weight(.medium))
+                .foregroundStyle(tint ?? Color.primary)
+                .frame(width: 28, height: 28)
+                .contentShape(Capsule())
+                .glassEffect(.regular, in: .capsule)
+        }
+        .buttonStyle(.plain)
+        .help(title)
     }
 
     private var pageIndicator: some View {

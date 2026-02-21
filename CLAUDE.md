@@ -80,7 +80,7 @@ Shared/
     BookReaderViewModel.swift     ← Reader + page regeneration
   Views/Components/               ← Color+Theme, SqueezeButton, FormatPreviewCard, StylePickerItem,
                                     PageThumbnail, ErrorBanner, UnavailableOverlay, SettingsPanelStyle,
-                                    StoryJuicerTypography
+                                    StoryJuicerTypography, ReportIssueSheet, SafetyInfoSheet
   Utilities/
     ModelSelectionStore.swift     ← Persists ModelSelectionSettings to JSON file
     CloudCredentialStore.swift    ← Keychain storage for API keys + OAuth tokens
@@ -88,6 +88,7 @@ Shared/
     HuggingFaceOAuth.swift       ← OAuth device flow for Hugging Face login
     CloudModelListCache.swift    ← Caches available model lists from cloud providers
     GenerationDiagnosticsLogger  ← Structured logging for generation pipeline
+    IssueReportService.swift     ← Zip builder + uploader for missing-image reports
     ContentSafetyPolicy.swift    ← Content safety guardrails
     GenerationOptions+Defaults   ← Default generation config values
     DiffusersRuntimeManager.swift ← Local Diffusers model management (hidden)
@@ -313,11 +314,12 @@ The sidebar in `MainView` (in `StoryFoxApp.swift`) has **no header** — the "Ne
 
 **Selection highlight fix:** macOS sidebar `List` selection uses the user's system accent color (typically blue). `.tint()`, `.accentColor()`, and even the AccentColor asset catalog entry do NOT override this. The fix is to use `.listRowBackground()` with an **opaque** background that paints over the system highlight. We use `sidebarRowBackground` (a `LinearGradient` matching the sidebar background) so the system blue is never visible. The rows' own `.sjGlassCard()` styling with coral tint provides the selection state feedback.
 
-## macOS Sidebar Gotchas
+## macOS UI Gotchas
 
 - **System blue selection:** `.tint()` and `.accentColor()` on a `List` do NOT change the sidebar selection highlight on macOS. The system draws it via AppKit using `NSColor.controlAccentColor`. Use opaque `.listRowBackground()` to cover it.
 - **`.buttonStyle(.plain)` hit targets:** On macOS, plain buttons only respond to clicks on visible content (text, icons), not transparent areas like `Spacer`. Add `.contentShape(Rectangle())` before glass modifiers to make the full area tappable.
 - **AccentColor in asset catalog:** Controls focus rings, toggles, and some system chrome, but NOT sidebar List selection. Still worth setting to `sjCoral` for consistency across other UI elements.
+- **Toolbar button glass styles ignored:** On macOS 26, `.buttonStyle(.glass)` and `.buttonStyle(.glassProminent)` are overridden by the system for `Button` inside `ToolbarItemGroup`. The system applies its own toolbar button chrome (coral-filled pills). `Menu` is unaffected and renders `.glassProminent` correctly. **Fix:** Use `.buttonStyle(.plain)` on the `Button` and apply `.glassEffect(.regular, in: .capsule)` directly on the label's `Image`. This gives a uniform dark glass capsule matching the `Menu` appearance. See the `toolbarButton()` helper in `MacBookReaderView.swift`.
 
 ## Settings Layout Order
 
@@ -360,6 +362,159 @@ cd landing && npm run dev
 - Vercel root directory must be set to `landing` in project settings
 - Generated illustration samples are in `landing/public/images/`
 
+## Neon Database
+
+**Project:** `shiny-brook-55652171` (name: `neon-green-pocket`)
+**Branch:** `main` (ID: `br-broad-truth-aiagt0cl`)
+**Database:** `neondb`
+**Connection:** `DATABASE_URL` env var (pooled connection string via `@neondatabase/serverless`)
+
+### Environment Variables
+
+- **Local dev:** Root `.env.local` contains all Neon/Postgres vars (created by Vercel CLI). The `landing/` directory symlinks to it (`landing/.env.local → ../.env.local`). Both are gitignored.
+- **Production:** Vercel injects `DATABASE_URL` automatically (Project Settings → Environment Variables).
+
+### Driver
+
+Uses `@neondatabase/serverless` — the `neon()` HTTP query function (tagged template literals for parameterized queries). No connection pool, no `pg` native bindings. Ideal for Vercel serverless/edge.
+
+### Tables
+
+**`public.feedback`** — Visitor feedback submitted from the landing page modal
+
+| Column | Type | Notes |
+|--------|------|-------|
+| `id` | `SERIAL PRIMARY KEY` | Auto-increment |
+| `category` | `TEXT NOT NULL` | One of: `suggestion`, `bug`, `complaint`, `other` (default: `suggestion`) |
+| `message` | `TEXT NOT NULL` | Feedback body (max 2000 chars, enforced by API route) |
+| `email` | `TEXT` | Optional contact email for follow-up |
+| `created_at` | `TIMESTAMPTZ NOT NULL` | Auto-set to `now()` |
+
+Indexes: `idx_feedback_created_at` (DESC), `idx_feedback_category`
+
+**`public.storybook_reports`** — Issue reports for storybooks with missing illustrations
+
+| Column | Type | Notes |
+|--------|------|-------|
+| `id` | `UUID PRIMARY KEY` | Auto-generated via `gen_random_uuid()` |
+| `created_at` | `TIMESTAMPTZ NOT NULL` | Auto-set to `now()` |
+| `book_title` | `TEXT NOT NULL` | Story title |
+| `page_count` | `INT NOT NULL` | Number of story pages |
+| `missing_indices` | `INT[] NOT NULL` | Postgres array of page indices missing images |
+| `format` | `TEXT NOT NULL` | `BookFormat.rawValue` (e.g., `standard`, `landscape`) |
+| `style` | `TEXT NOT NULL` | `IllustrationStyle.rawValue` (e.g., `illustration`, `animation`) |
+| `text_provider` | `TEXT NOT NULL` | `StoryTextProvider.rawValue` |
+| `image_provider` | `TEXT NOT NULL` | `StoryImageProvider.rawValue` |
+| `user_notes` | `TEXT` | Optional free-text from the user |
+| `blob_url` | `TEXT NOT NULL` | Vercel Blob URL to the report zip |
+| `blob_size_bytes` | `INT NOT NULL` | Size of the uploaded zip |
+| `status` | `TEXT NOT NULL` | Triage status: `new` (default), `reviewing`, `resolved`, `wont_fix` |
+| `app_version` | `TEXT NOT NULL` | App version at time of report |
+| `os_version` | `TEXT` | macOS version string |
+| `device_model` | `TEXT` | Hardware model identifier |
+
+Indexes: `idx_reports_status`, `idx_reports_created` (DESC)
+
+### Vercel Blob
+
+Used to store report zip files uploaded from the macOS app. Each zip contains `story.json`, `images/*.jpg`, and `diagnostics.jsonl`.
+
+- **Package:** `@vercel/blob` (installed in `landing/`)
+- **Store:** Must be connected in Vercel dashboard (Storage → Create → Blob) — auto-provisions `BLOB_READ_WRITE_TOKEN`
+- **Naming:** `reports/{ISO-timestamp}-{short-uuid}.zip`
+- **Access:** `public` (reports contain story text + illustrations, not sensitive data)
+- **Size limit:** 5 MB per zip (enforced by API route)
+
+### API Routes
+
+- **`POST /api/feedback`** (`landing/app/api/feedback/route.ts`) — Validates and inserts a feedback row. Body: `{ category, message, email? }`. Returns `{ success: true }` or `{ error: "..." }` with status codes 400/500.
+- **`POST /api/reports`** (`landing/app/api/reports/route.ts`) — Receives multipart form data with `metadata` (JSON) and `report` (zip). Uploads zip to Vercel Blob, inserts metadata into `storybook_reports`. Rate-limited to one report per IP per 5 minutes. Returns `{ success: true }` or `{ error: "..." }` with status codes 400/429/500.
+
+### Feedback UI
+
+The feedback form is a **modal** (`landing/components/FeedbackModal.tsx`), not an inline page section. It's triggered by a "Share Feedback" pill button in the **Footer** (`landing/components/Footer.tsx`), positioned after the Changelog chip. The modal has category pills (Suggestion, Bug Report, Complaint, Other), a message textarea, an optional email field, and shows a success/error state after submission.
+
+### Issue Reports (macOS App)
+
+When Image Playground fails to generate all illustrations (common with Apple's safety filters), a "Report Issue" button appears in the reader toolbar. The button is **only visible when images are missing** (`viewModel.missingImageIndices.isEmpty == false`).
+
+**Flow:** User clicks "Report Issue" → confirm sheet (`ReportIssueSheet`) shows what will be sent → user optionally adds notes → submit → `IssueReportService` builds a zip (story.json + images/ + diagnostics.jsonl), uploads it to Vercel Blob via `POST /api/reports`, and metadata is stored in `storybook_reports`.
+
+**Key files:**
+- `Shared/Utilities/IssueReportService.swift` — `buildReportZip()` (NSFileCoordinator zip) + `submitReport()` (multipart upload)
+- `Shared/Views/Components/ReportIssueSheet.swift` — Confirm sheet UI
+- `macOS/Views/MacBookReaderView.swift` — Toolbar button + `.reportIssue` sheet case
+
+### Querying Data
+
+To read submitted feedback or reports, use the Neon MCP tools or direct SQL:
+
+```sql
+-- All feedback, newest first
+SELECT * FROM public.feedback ORDER BY created_at DESC;
+
+-- Filter by category
+SELECT * FROM public.feedback WHERE category = 'bug' ORDER BY created_at DESC;
+
+-- Count by category
+SELECT category, COUNT(*) FROM public.feedback GROUP BY category;
+
+-- All storybook reports, newest first
+SELECT id, book_title, missing_indices, status, created_at FROM public.storybook_reports ORDER BY created_at DESC;
+
+-- Reports by status
+SELECT * FROM public.storybook_reports WHERE status = 'new' ORDER BY created_at DESC;
+
+-- Find common missing-image patterns
+SELECT missing_indices, COUNT(*) as occurrences FROM public.storybook_reports GROUP BY missing_indices ORDER BY occurrences DESC;
+```
+
+There is **no admin UI or dashboard** for reading feedback or reports yet. Data lives in `public.feedback` and `public.storybook_reports` on the `neondb` database in Neon project `shiny-brook-55652171`.
+
 ## Model Names
 
 Never change model names during debugging. If a model name is unfamiliar, assume it is valid.
+
+## Test Harness Workflow
+
+The test harness (`Debug > Test Character Harness`, Cmd+Shift+T) has a **Copy Results** button that exports all test data as JSON for pasting into a Claude conversation. This enables an iterative debugging loop:
+
+**Workflow:** Run tests → Copy Results → Paste into Claude → Analyze → Fix code → Repeat
+
+### Interpreting Pasted JSON
+
+The export has four top-level sections:
+
+**`metadata`** — Test context: concept, expected species, text provider, app version, timestamp.
+
+**`llmTest`** (always present) — Character consistency evaluation of the LLM-generated story.
+- `scores`: Five metrics from 0.0–1.0:
+  - `overall` — Weighted average (species 35%, appearance 25%, description 20%, name 20%)
+  - `characterDescription` — Does `characterDescriptions` field contain species + visual detail?
+  - `speciesInPrompts` — Fraction of enriched imagePrompts containing the expected species word
+  - `appearanceInPrompts` — Fraction containing appearance keywords from characterDescriptions
+  - `nameConsistency` — Fraction mentioning the character by name
+- `verdict`: `"pass"` (≥0.75), `"marginal"` (≥0.50), `"fail"` (<0.50)
+- `characterDescriptions`: Raw LLM output — check for correct "Name - species, details" format
+- `pages[]`: Per-page raw vs enriched imagePrompts with boolean checks
+
+**`promptTest`** (null if not run) — Variant fallback chain inspection.
+- Each page shows the original prompt, enriched prompt, and all fallback variants
+- `variants[]`: Each has `label` (sanitized → llmRewritten → shortened → highReliability → fallback → ultraSafe), full `text`, `charCount`, and `exceedsLimit` flag
+- Watch for: all variants exceeding the limit (means even ultraSafe is too long), early variants with `exceedsLimit: true` (character descriptions may be too verbose)
+
+**`imageTest`** (null if not run) — Image generation pipeline results.
+- `successCount`/`totalCount` — How many images ImagePlayground successfully generated
+- `totalDurationSeconds` — Wall-clock time for the full image batch
+- `variantWins` — Which fallback variant succeeded for each image. Ideal: most wins at `"sanitized"`. If wins cluster at `"fallback"` or `"ultraSafe"`, the sanitization is too aggressive or prompts are too long
+
+### What to Look For
+
+| Symptom | Likely Cause | Where to Fix |
+|---------|-------------|--------------|
+| Low `speciesInPrompts` score | LLM not embedding species in imagePrompts | `StoryPromptTemplates` (strengthen the prompt instruction) |
+| `characterDescriptions` malformed | LLM not following "Name - details" format | `StoryBook.characterDescriptions` `@Guide` description |
+| Raw ≠ Enriched on many pages | Enricher is working hard (LLM prompts are weak) | `StoryPromptTemplates` or `ImagePromptEnricher` heuristics |
+| All prompt variants `exceedsLimit` | Character descriptions too verbose | `ImagePromptEnricher.buildInjectionPhrase` or `ContentSafetyPolicy` limits |
+| Image wins at `fallback`/`ultraSafe` | ImagePlayground rejecting detailed prompts | `IllustrationGenerator` variant chain or `ContentSafetyPolicy` sanitization |
+| Low `successCount` | Apple safety filters blocking generation | Check prompts for flagged words; review `ContentSafetyPolicy` |

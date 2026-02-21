@@ -12,6 +12,63 @@ export interface ChangelogEntry {
 
 export const changelog: ChangelogEntry[] = [
   {
+    version: "1.7.0",
+    date: "2026-02-21",
+    title: "Multi-Character Intelligence & Issue Reporting",
+    changes: [
+      {
+        type: "added",
+        description:
+          "Semantic prompt analysis engine — the on-device Foundation Model now pre-processes every image prompt to extract characters, appearance, scene setting, action, and mood for smarter fallback variants",
+      },
+      {
+        type: "added",
+        description:
+          "Multi-character detection — prompts with multiple characters (e.g. a fox and an owl) now have all species and appearances extracted individually, instead of just the protagonist",
+      },
+      {
+        type: "added",
+        description:
+          "Character reference image — the cover illustration is generated first and passed as a visual reference to ImagePlayground for the opening page, improving character consistency",
+      },
+      {
+        type: "added",
+        description:
+          "Report Issue button appears in the reader toolbar when illustrations are missing — uploads a diagnostic zip (story, images, logs) for investigation",
+      },
+      {
+        type: "added",
+        description:
+          "Test harness for evaluating character consistency (Debug > Test Character Harness) — tests LLM output, prompt variant chains, semantic analysis, and image generation in one place",
+      },
+      {
+        type: "added",
+        description:
+          "Share Feedback button in the landing page footer — submit suggestions, bug reports, or complaints directly from the website",
+      },
+      {
+        type: "added",
+        description:
+          "App preview section on the landing page with a parallax scroll effect showcasing the creation screen",
+      },
+      {
+        type: "changed",
+        description:
+          "Fallback prompt variants now preserve all character species — 'friendly fox and owl in a colorful storybook scene' instead of just 'friendly fox...'",
+      },
+      {
+        type: "changed",
+        description:
+          "Smart character enrichment detects when species descriptors are already inline and skips the 'Featuring...' prefix to avoid duplication",
+      },
+      {
+        type: "changed",
+        description:
+          "Toolbar buttons in the reader use uniform dark glass capsules, fixing the system override that turned them into coral-filled pills",
+      },
+    ],
+  },
+  {
     version: "1.6.0",
     date: "2026-02-20",
     title: "Character Consistency & Smarter Harness",

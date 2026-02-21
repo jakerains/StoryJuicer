@@ -27,6 +27,6 @@ struct StoryPage {
     @Guide(description: "2-4 sentences of story text for this page. Use simple vocabulary appropriate for children ages 3-8. Each page should advance the narrative. Use vivid, sensory language that paints a picture.")
     var text: String
 
-    @Guide(description: "A detailed visual scene description for generating an illustration. Describe the setting, characters, their expressions, actions, colors, and mood. Write it as a children's book illustration prompt. Do NOT include any text or words in the image description.")
+    @Guide(description: "A detailed visual scene description for generating an illustration. IMPORTANT: Describe each character by their species and visual appearance (e.g. 'a small orange fox with a green scarf'), NOT just their name. Image models cannot look up character names. Include setting, expressions, actions, colors, and mood. Do NOT include any text or words in the image description.")
     var imagePrompt: String
 }

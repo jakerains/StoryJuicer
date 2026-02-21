@@ -108,10 +108,18 @@ final class CreationViewModel {
                 // Phase 1: Generate text
                 phase = .generatingText(partialText: "")
 
-                let book = try await generateStoryWithRouting(
+                let rawBook = try await generateStoryWithRouting(
                     concept: safeConcept,
                     pageCount: pageCount
                 )
+
+                // Phase 1.5: Analyze image prompts with Foundation Model
+                let promptsToAnalyze = [(index: 0, prompt: ContentSafetyPolicy.safeCoverPrompt(
+                    title: rawBook.title, concept: safeConcept
+                ))] + rawBook.pages.map { (index: $0.pageNumber, prompt: $0.imagePrompt) }
+                let analyses = await PromptAnalysisEngine.analyzePrompts(promptsToAnalyze)
+
+                let book = ImagePromptEnricher.enrichImagePrompts(in: rawBook, analyses: analyses)
                 storyBook = book
 
                 // Phase 2: Generate illustrations
@@ -129,7 +137,8 @@ final class CreationViewModel {
                     coverPrompt: coverPrompt,
                     characterDescriptions: book.characterDescriptions,
                     style: selectedStyle,
-                    format: selectedFormat
+                    format: selectedFormat,
+                    analyses: analyses
                 ) { [weak self] index, image in
                     guard let self else { return }
                     self.generatedImages[index] = image
