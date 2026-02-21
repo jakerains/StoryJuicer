@@ -47,8 +47,8 @@ targets:
         PRODUCT_BUNDLE_IDENTIFIER: com.jakerains.StoryFox
         PRODUCT_NAME: StoryFox
         INFOPLIST_GENERATION_MODE: GeneratedFile
-        MARKETING_VERSION: "1.7.2"
-        CURRENT_PROJECT_VERSION: "23"
+        MARKETING_VERSION: "1.7.3"
+        CURRENT_PROJECT_VERSION: "24"
         CODE_SIGN_ENTITLEMENTS: Resources/StoryFox.entitlements
         GENERATE_INFOPLIST_FILE: "YES"
         INFOPLIST_FILE: Resources/StoryFox-Info.plist
