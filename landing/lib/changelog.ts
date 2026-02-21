@@ -12,6 +12,33 @@ export interface ChangelogEntry {
 
 export const changelog: ChangelogEntry[] = [
   {
+    version: "1.7.4",
+    date: "2026-02-21",
+    title: "Author Mode",
+    changes: [
+      {
+        type: "added",
+        description:
+          "Author Mode — write your own story text page-by-page, then StoryFox generates beautiful illustrations using the full AI image pipeline",
+      },
+      {
+        type: "added",
+        description:
+          "Custom hover tooltips on creation mode chips with snappy glass-material styling",
+      },
+      {
+        type: "changed",
+        description:
+          "Creation mode toggle and book setup controls promoted above content for easier mode switching",
+      },
+      {
+        type: "changed",
+        description:
+          "Larger, bolder hero title pulled closer to the fox illustration for a tighter visual composition",
+      },
+    ],
+  },
+  {
     version: "1.7.3",
     date: "2026-02-21",
     title: "Export Page as Image",
