@@ -12,6 +12,33 @@ export interface ChangelogEntry {
 
 export const changelog: ChangelogEntry[] = [
   {
+    version: "1.7.6",
+    date: "2026-02-21",
+    title: "Smarter Illustrations",
+    changes: [
+      {
+        type: "added",
+        description:
+          "Multi-concept image prompting — each story detail (character, setting, action, mood) is sent as a separate concept to the diffusion model for sharper, more faithful illustrations",
+      },
+      {
+        type: "added",
+        description:
+          "Progressive shedding fallback — if image generation fails, the least important concepts are dropped one by one while preserving the character's species until last",
+      },
+      {
+        type: "added",
+        description:
+          "Dog and cat breed-specific species words for more accurate character rendering in illustrations",
+      },
+      {
+        type: "changed",
+        description:
+          "Test harness now shows concept chips under each generated image and supports editable concept fields for prompt debugging",
+      },
+    ],
+  },
+  {
     version: "1.7.5",
     date: "2026-02-21",
     title: "Story Info & Release Notes",
