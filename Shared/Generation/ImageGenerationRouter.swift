@@ -13,13 +13,13 @@ struct ImageGenerationRouter: Sendable {
     private static let logger = Logger(subsystem: "com.storyfox.app", category: "ImageRouter")
 
     private let settingsProvider: @Sendable () -> ModelSelectionSettings
-    private let imagePlaygroundGenerator: any StoryImageGenerating
+    private let imagePlaygroundGenerator: ImagePlaygroundImageGenerator
 
     init(
         settingsProvider: @escaping @Sendable () -> ModelSelectionSettings = {
             ModelSelectionStore.load()
         },
-        imagePlaygroundGenerator: any StoryImageGenerating = ImagePlaygroundImageGenerator()
+        imagePlaygroundGenerator: ImagePlaygroundImageGenerator = ImagePlaygroundImageGenerator()
     ) {
         self.settingsProvider = settingsProvider
         self.imagePlaygroundGenerator = imagePlaygroundGenerator
@@ -30,11 +30,12 @@ struct ImageGenerationRouter: Sendable {
         style: IllustrationStyle,
         format: BookFormat,
         referenceImage: CGImage? = nil,
+        rankedConcepts: [RankedImageConcept]? = nil,
         onStatus: @Sendable @escaping (String) -> Void
     ) async throws -> ImageGenerationOutcome {
         let settings = settingsProvider()
 
-        // Cloud image providers (don't support reference images)
+        // Cloud image providers (don't support reference images or ranked concepts)
         if settings.imageProvider.isCloud,
            let cloudProvider = settings.imageProvider.cloudProvider {
             do {
@@ -54,7 +55,7 @@ struct ImageGenerationRouter: Sendable {
             } catch {
                 Self.logger.warning("Cloud image generation failed (\(cloudProvider.rawValue, privacy: .public)): \(String(describing: error), privacy: .public)")
 
-                // Fall back to Image Playground if enabled
+                // Fall back to Image Playground if enabled (forward concepts)
                 if settings.enableImageFallback {
                     onStatus("Cloud image generation failed, falling back to Image Playground...")
                     let image = try await imagePlaygroundGenerator.generateImage(
@@ -63,6 +64,7 @@ struct ImageGenerationRouter: Sendable {
                         format: format,
                         settings: settings,
                         referenceImage: referenceImage,
+                        rankedConcepts: rankedConcepts,
                         onStatus: onStatus
                     )
                     return ImageGenerationOutcome(
@@ -75,7 +77,7 @@ struct ImageGenerationRouter: Sendable {
             }
         }
 
-        // Default: Image Playground (pass reference image for character consistency)
+        // Default: Image Playground (pass reference image + ranked concepts)
         do {
             let image = try await imagePlaygroundGenerator.generateImage(
                 prompt: prompt,
@@ -83,6 +85,7 @@ struct ImageGenerationRouter: Sendable {
                 format: format,
                 settings: settings,
                 referenceImage: referenceImage,
+                rankedConcepts: rankedConcepts,
                 onStatus: onStatus
             )
             return ImageGenerationOutcome(

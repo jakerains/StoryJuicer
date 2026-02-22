@@ -27,6 +27,29 @@ struct ImagePlaygroundImageGenerator: StoryImageGenerating {
         referenceImage: CGImage? = nil,
         onStatus: @Sendable @escaping (String) -> Void
     ) async throws -> CGImage {
+        try await generateImage(
+            prompt: prompt,
+            style: style,
+            format: format,
+            settings: settings,
+            referenceImage: referenceImage,
+            rankedConcepts: nil,
+            onStatus: onStatus
+        )
+    }
+
+    /// Multi-concept generation entry point. When `rankedConcepts` is provided,
+    /// each concept becomes a separate `.text()` input to ImagePlayground, forcing
+    /// the diffusion model to address each detail individually.
+    func generateImage(
+        prompt: String,
+        style: IllustrationStyle,
+        format: BookFormat,
+        settings: ModelSelectionSettings,
+        referenceImage: CGImage? = nil,
+        rankedConcepts: [RankedImageConcept]?,
+        onStatus: @Sendable @escaping (String) -> Void
+    ) async throws -> CGImage {
         let isAvailable = await MainActor.run {
             ImagePlaygroundViewController.isAvailable
         }
@@ -43,7 +66,13 @@ struct ImagePlaygroundImageGenerator: StoryImageGenerating {
         return try await withTimeout(
             seconds: GenerationConfig.imagePlaygroundGenerationTimeoutSeconds
         ) {
-            let concepts = self.imageConcepts(for: prompt, referenceImage: referenceImage)
+            let concepts: [ImagePlaygroundConcept]
+            if let ranked = rankedConcepts, !ranked.isEmpty {
+                concepts = self.conceptsFromRanked(ranked, referenceImage: referenceImage)
+            } else {
+                concepts = self.imageConcepts(for: prompt, referenceImage: referenceImage)
+            }
+
             let images = creator.images(
                 for: concepts,
                 style: style.playgroundStyle,
@@ -77,6 +106,27 @@ struct ImagePlaygroundImageGenerator: StoryImageGenerating {
             group.cancelAll()
             return result
         }
+    }
+
+    /// Convert priority-ranked concept structs into ImagePlayground concepts.
+    /// Each ranked concept becomes a separate `.text()` input with its label prefix,
+    /// proven to improve adherence to specific details like breed/species.
+    private func conceptsFromRanked(
+        _ ranked: [RankedImageConcept],
+        referenceImage: CGImage? = nil
+    ) -> [ImagePlaygroundConcept] {
+        var concepts: [ImagePlaygroundConcept] = []
+
+        for rc in ranked {
+            let text = "\(rc.label): \(rc.value)"
+            concepts.append(.text(text))
+        }
+
+        if let ref = referenceImage {
+            concepts.append(.image(ref))
+        }
+
+        return concepts
     }
 
     private func imageConcepts(for prompt: String, referenceImage: CGImage? = nil) -> [ImagePlaygroundConcept] {

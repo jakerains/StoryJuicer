@@ -92,6 +92,74 @@ enum PromptAnalysisEngine {
         }
     }
 
+    // MARK: - Multi-Concept Decomposition
+
+    /// Decompose an image prompt into priority-ranked concept chunks for multi-concept generation.
+    /// Returns nil if Foundation Model is unavailable or decomposition fails —
+    /// caller should fall back to `heuristicConcepts(from:)`.
+    static func decomposeIntoConcepts(prompt: String) async -> ImageConceptDecomposition? {
+        guard SystemLanguageModel.default.availability == .available else {
+            return nil
+        }
+
+        let session = LanguageModelSession(
+            instructions: """
+                You are extracting keyword chunks from a children's storybook image prompt. \
+                Each chunk will be sent as a separate concept to an image generator. \
+                Rules: \
+                - Use ONLY words and details present in the original prompt. Never invent or embellish. \
+                - Keep each chunk short (2-6 words). No full sentences. \
+                - Order by importance: CHARACTER first (species/breed + color), then SETTING, ACTION, \
+                  then additional DETAIL, PROPS, ATMOSPHERE concepts as needed. \
+                - Extract as many concepts as the prompt warrants. Richer prompts get more concepts.
+                """
+        )
+
+        let options = GenerationOptions(temperature: 0.2, maximumResponseTokens: 400)
+
+        do {
+            let response = try await session.respond(
+                to: "Decompose this illustration prompt into ranked concept chunks:\n\"\(prompt)\"",
+                generating: ImageConceptDecomposition.self,
+                options: options
+            )
+            let result = response.content
+            // Validate: must have at least one concept
+            return result.concepts.isEmpty ? nil : result
+        } catch {
+            logger.warning("Concept decomposition failed: \(String(describing: error), privacy: .public)")
+            return nil
+        }
+    }
+
+    /// Build concepts heuristically from a pre-computed `PromptAnalysis` when
+    /// Foundation Model is unavailable for decomposition.
+    static func heuristicConcepts(from analysis: PromptAnalysis) -> ImageConceptDecomposition {
+        var concepts: [RankedImageConcept] = []
+
+        // Characters first (highest priority)
+        for char in analysis.characters {
+            let value = [char.appearance, char.species]
+                .filter { !$0.isEmpty }
+                .joined(separator: " ")
+            if !value.isEmpty {
+                concepts.append(RankedImageConcept(label: "CHARACTER", value: value))
+            }
+        }
+
+        if !analysis.sceneSetting.isEmpty {
+            concepts.append(RankedImageConcept(label: "SETTING", value: analysis.sceneSetting))
+        }
+        if !analysis.mainAction.isEmpty {
+            concepts.append(RankedImageConcept(label: "ACTION", value: analysis.mainAction))
+        }
+        if !analysis.mood.isEmpty {
+            concepts.append(RankedImageConcept(label: "ATMOSPHERE", value: analysis.mood))
+        }
+
+        return ImageConceptDecomposition(concepts: concepts)
+    }
+
     // MARK: - Heuristic Fallback
 
     /// Heuristic fallback when Foundation Model is unavailable.

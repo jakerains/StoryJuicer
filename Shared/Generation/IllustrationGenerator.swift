@@ -48,6 +48,10 @@ final class IllustrationGenerator {
     /// Keyed by page index (0 = cover, 1...N = story pages).
     private var promptAnalyses: [Int: PromptAnalysis] = [:]
 
+    /// Multi-concept decompositions for each page, used by the progressive shedding
+    /// retry loop in `generateSingleImage()`. Keyed by page index (0 = cover).
+    private(set) var conceptDecompositions: [Int: ImageConceptDecomposition] = [:]
+
     init(router: ImageGenerationRouter = ImageGenerationRouter()) {
         self.router = router
     }
@@ -70,6 +74,7 @@ final class IllustrationGenerator {
         activeImageProvider = nil
         variantSuccessCounts = [:]
         promptAnalyses = analyses
+        conceptDecompositions = [:]
         let totalCount = pages.count + 1 // +1 for cover
         state = .generating(currentPage: 0, completedCount: 0, totalCount: totalCount)
         let sessionStart = ContinuousClock.now
@@ -77,6 +82,17 @@ final class IllustrationGenerator {
         // Enrich prompts with character descriptions, skipping if the enricher already
         // injected species inline (avoids duplicate descriptors for ImagePlayground).
         let enrichedCover = Self.enrichPromptWithCharacters(coverPrompt, characterDescriptions: characterDescriptions, parsedCharacters: parsedCharacters)
+
+        // Decompose each prompt into ranked concepts for multi-concept ImagePlayground generation.
+        // Uses FM when available, falls back to heuristic extraction from PromptAnalysis.
+        let allIndexedPrompts = [(0, enrichedCover)] + pages.map { ($0.pageNumber, Self.enrichPromptWithCharacters($0.imagePrompt, characterDescriptions: characterDescriptions, parsedCharacters: parsedCharacters)) }
+        for (index, prompt) in allIndexedPrompts {
+            if let decomposition = await PromptAnalysisEngine.decomposeIntoConcepts(prompt: prompt) {
+                conceptDecompositions[index] = decomposition
+            } else if let analysis = promptAnalyses[index] {
+                conceptDecompositions[index] = PromptAnalysisEngine.heuristicConcepts(from: analysis)
+            }
+        }
 
         let semaphore = AsyncSemaphore(limit: GenerationConfig.maxConcurrentImages)
         var completedCount = 0
@@ -259,6 +275,82 @@ final class IllustrationGenerator {
         let resolvedAnalysis = analysis
             ?? pageIndex.flatMap { promptAnalyses[$0] }
 
+        // --- Multi-concept progressive shedding (ImagePlayground only) ---
+        // Try sending multiple short .text() concepts, dropping the least important on failure.
+        let decomposition = pageIndex.flatMap { conceptDecompositions[$0] }
+
+        if let decomposition, !decomposition.concepts.isEmpty, startingVariantIndex == 0 {
+            var conceptCount = decomposition.concepts.count
+
+            while conceptCount > 0 {
+                let activeConcepts = Array(decomposition.concepts.prefix(conceptCount))
+                let label = "multiConcept_\(conceptCount)"
+                let attemptStart = ContinuousClock.now
+
+                do {
+                    let outcome = try await router.generateImage(
+                        prompt: prompt,
+                        style: style,
+                        format: format,
+                        referenceImage: referenceImage,
+                        rankedConcepts: activeConcepts
+                    ) { [weak self] status in
+                        Task { @MainActor in
+                            self?.lastStatusMessage = status
+                        }
+                    }
+
+                    let elapsed = attemptStart.duration(to: .now)
+                    let secs = Double(elapsed.components.seconds) + Double(elapsed.components.attoseconds) / 1e18
+                    Self.logger.info("Image succeeded: variant=\(label, privacy: .public) concepts=\(conceptCount) duration=\(String(format: "%.1f", secs))s")
+                    self.activeImageProvider = outcome.providerUsed
+                    await GenerationDiagnosticsLogger.shared.logImageSuccess(
+                        provider: outcome.providerUsed,
+                        prompt: prompt,
+                        variantLabel: label,
+                        variantIndex: 0,
+                        attemptIndex: 0,
+                        durationSeconds: secs,
+                        conceptCount: conceptCount,
+                        conceptLabels: activeConcepts.map(\.label),
+                        usedMultiConcept: true
+                    )
+                    variantSuccessCounts[label, default: 0] += 1
+                    return outcome.image
+                } catch {
+                    let elapsed = attemptStart.duration(to: .now)
+                    let secs = Double(elapsed.components.seconds) + Double(elapsed.components.attoseconds) / 1e18
+                    lastError = error
+                    if error is CancellationError { throw error }
+
+                    let errorDesc = String(describing: error)
+                    Self.logger.info("Multi-concept failed with \(conceptCount) concepts, shedding to \(conceptCount - 1): \(errorDesc, privacy: .public)")
+                    let currentSettings = ModelSelectionStore.load()
+                    await GenerationDiagnosticsLogger.shared.logImageAttemptFailure(
+                        provider: currentSettings.imageProvider,
+                        prompt: prompt,
+                        variantLabel: label,
+                        variantIndex: 0,
+                        attemptIndex: 0,
+                        retryable: false,
+                        errorType: String(describing: type(of: error)),
+                        errorDescription: errorDesc,
+                        durationSeconds: secs,
+                        conceptCount: conceptCount,
+                        conceptLabels: activeConcepts.map(\.label),
+                        usedMultiConcept: true
+                    )
+
+                    // Shed least important concept and retry
+                    conceptCount -= 1
+                }
+            }
+
+            // All multi-concept attempts exhausted — fall through to single-string fallback
+            Self.logger.warning("All multi-concept attempts failed for page \(pageIndex ?? -1), falling back to single-string variants")
+        }
+
+        // --- Single-string variant chain (existing fallback) ---
         // Variant 0: Use async FM rewrite when unsafe content detected (Upgrade 3),
         // otherwise falls back to sync regex sanitization
         let safeVariant0 = await ContentSafetyPolicy.safeIllustrationPromptAsync(prompt, extendedLimit: hasCharPrefix)
@@ -303,7 +395,8 @@ final class IllustrationGenerator {
                         variantLabel: label,
                         variantIndex: variantIndex,
                         attemptIndex: attempt,
-                        durationSeconds: secs
+                        durationSeconds: secs,
+                        usedMultiConcept: false
                     )
                     variantSuccessCounts[label, default: 0] += 1
                     return outcome.image
@@ -328,7 +421,8 @@ final class IllustrationGenerator {
                         retryable: shouldRetry,
                         errorType: String(describing: type(of: error)),
                         errorDescription: errorDesc,
-                        durationSeconds: secs
+                        durationSeconds: secs,
+                        usedMultiConcept: false
                     )
 
                     // Retry the current variant only for likely transient failures.
@@ -597,6 +691,7 @@ final class IllustrationGenerator {
         lastStatusMessage = nil
         variantSuccessCounts = [:]
         promptAnalyses = [:]
+        conceptDecompositions = [:]
         state = .idle
     }
 

@@ -55,13 +55,14 @@ struct MacTestHarnessView: View {
     @State private var imageTestTotal = 0
     @State private var imageTestCompleted = 0
     @State private var useReferenceImage = false
+    @State private var imageTestConcepts: [Int: ImageConceptDecomposition] = [:]
 
     // MARK: - Export State
 
     @State private var copyButtonLabel = "Copy Results"
 
-    private let baselineConcept = "A curious fox building a moonlight library in the forest"
-    private let expectedSpecies = "fox"
+    @State private var baselineConcept = "A curious fox building a moonlight library in the forest"
+    @State private var expectedSpecies = "fox"
     private let testPageCount = 4
 
     var body: some View {
@@ -122,17 +123,50 @@ struct MacTestHarnessView: View {
                 .font(StoryJuicerTypography.settingsBody)
                 .foregroundStyle(Color.sjSecondaryText)
 
-            HStack(spacing: 4) {
-                Text("Baseline:")
-                    .font(StoryJuicerTypography.uiMetaStrong)
-                    .foregroundStyle(Color.sjSecondaryText)
-                Text("\"\(baselineConcept)\"")
-                    .font(StoryJuicerTypography.uiMeta)
-                    .foregroundStyle(Color.sjGlassInk)
-                    .italic()
+            VStack(alignment: .leading, spacing: 6) {
+                HStack(spacing: 8) {
+                    Text("Concept:")
+                        .font(StoryJuicerTypography.uiMetaStrong)
+                        .foregroundStyle(Color.sjSecondaryText)
+                        .frame(width: 60, alignment: .trailing)
+                    TextField("Story concept...", text: $baselineConcept)
+                        .textFieldStyle(.plain)
+                        .font(StoryJuicerTypography.settingsBody)
+                        .padding(8)
+                        .settingsFieldChrome()
+                        .onChange(of: baselineConcept) {
+                            expectedSpecies = autoDetectSpecies(from: baselineConcept)
+                        }
+                }
+
+                HStack(spacing: 8) {
+                    Text("Species:")
+                        .font(StoryJuicerTypography.uiMetaStrong)
+                        .foregroundStyle(Color.sjSecondaryText)
+                        .frame(width: 60, alignment: .trailing)
+                    TextField("Expected species...", text: $expectedSpecies)
+                        .textFieldStyle(.plain)
+                        .font(StoryJuicerTypography.settingsBody)
+                        .padding(8)
+                        .settingsFieldChrome()
+                        .frame(width: 160)
+                    Text("Auto-detected from concept")
+                        .font(StoryJuicerTypography.uiMeta)
+                        .foregroundStyle(Color.sjSecondaryText.opacity(0.6))
+                }
             }
             .padding(.top, 4)
         }
+    }
+
+    /// Auto-detect the primary species from the concept using the same word list
+    /// that `ImagePromptEnricher` uses for species detection.
+    private func autoDetectSpecies(from concept: String) -> String {
+        let words = concept.lowercased()
+            .replacingOccurrences(of: #"[^\p{L}\p{N}\s]"#, with: " ", options: .regularExpression)
+            .split(whereSeparator: \.isWhitespace)
+            .map(String.init)
+        return words.first(where: { ImagePromptEnricher.speciesWords.contains($0) }) ?? ""
     }
 
     // MARK: - Controls
@@ -746,13 +780,13 @@ struct MacTestHarnessView: View {
                 .sjGlassCard(cornerRadius: StoryJuicerGlassTokens.Radius.card)
             }
 
-            // Image grid (2 columns)
+            // Image grid (2 columns) with concept detail
             if !imageTestImages.isEmpty {
                 let sortedKeys = imageTestImages.keys.sorted()
                 LazyVGrid(columns: [GridItem(.flexible()), GridItem(.flexible())], spacing: StoryJuicerGlassTokens.Spacing.medium) {
                     ForEach(sortedKeys, id: \.self) { index in
                         if let cgImage = imageTestImages[index] {
-                            VStack(spacing: 6) {
+                            VStack(alignment: .leading, spacing: 6) {
                                 Image(decorative: cgImage, scale: 1.0)
                                     .resizable()
                                     .scaledToFit()
@@ -762,6 +796,11 @@ struct MacTestHarnessView: View {
                                 Text(index == 0 ? "Cover" : "Page \(index)")
                                     .font(StoryJuicerTypography.uiMetaStrong)
                                     .foregroundStyle(Color.sjGlassInk)
+
+                                // Show the concepts used for this image
+                                if let decomposition = imageTestConcepts[index] {
+                                    conceptChips(decomposition.concepts)
+                                }
                             }
                         }
                     }
@@ -782,10 +821,21 @@ struct MacTestHarnessView: View {
                 .foregroundStyle(Color.sjGlassInk)
 
             let sortedWins = imageTestVariantWins.sorted { a, b in
-                // Sort by the variant chain order
-                let order = ["sanitized", "llmRewritten", "shortened", "highReliability", "fallback", "ultraSafe"]
-                let ai = order.firstIndex(of: a.key) ?? order.count
-                let bi = order.firstIndex(of: b.key) ?? order.count
+                // Multi-concept variants sort first (by concept count descending),
+                // then single-string variants in chain order.
+                let singleOrder = ["sanitized", "llmRewritten", "shortened", "highReliability", "fallback", "ultraSafe"]
+                let aIsMulti = a.key.hasPrefix("multiConcept_")
+                let bIsMulti = b.key.hasPrefix("multiConcept_")
+                if aIsMulti && bIsMulti {
+                    // Higher concept count first
+                    let aNum = Int(a.key.dropFirst("multiConcept_".count)) ?? 0
+                    let bNum = Int(b.key.dropFirst("multiConcept_".count)) ?? 0
+                    return aNum > bNum
+                }
+                if aIsMulti { return true }
+                if bIsMulti { return false }
+                let ai = singleOrder.firstIndex(of: a.key) ?? singleOrder.count
+                let bi = singleOrder.firstIndex(of: b.key) ?? singleOrder.count
                 return ai < bi
             }
 
@@ -794,7 +844,7 @@ struct MacTestHarnessView: View {
                     Text(label)
                         .font(.system(.callout, design: .monospaced))
                         .foregroundStyle(Color.sjGlassInk)
-                        .frame(width: 120, alignment: .leading)
+                        .frame(width: 150, alignment: .leading)
 
                     // Bar chart
                     let maxCount = imageTestVariantWins.values.max() ?? 1
@@ -835,6 +885,40 @@ struct MacTestHarnessView: View {
         .sjGlassCard(cornerRadius: StoryJuicerGlassTokens.Radius.card)
     }
 
+    /// Compact label-colored chips showing the ranked concepts used for an image.
+    private func conceptChips(_ concepts: [RankedImageConcept]) -> some View {
+        FlowLayout(spacing: 4) {
+            ForEach(Array(concepts.enumerated()), id: \.offset) { idx, concept in
+                HStack(spacing: 3) {
+                    Text("\(idx + 1).")
+                        .font(.system(.caption2, design: .monospaced).weight(.bold))
+                        .foregroundStyle(conceptLabelColor(concept.label).opacity(0.8))
+                    Text("\(concept.label): \(concept.value)")
+                        .font(.system(.caption2, design: .monospaced))
+                        .foregroundStyle(Color.sjGlassInk)
+                }
+                .padding(.horizontal, 6)
+                .padding(.vertical, 3)
+                .background(
+                    conceptLabelColor(concept.label).opacity(0.1),
+                    in: RoundedRectangle(cornerRadius: 4)
+                )
+            }
+        }
+    }
+
+    private func conceptLabelColor(_ label: String) -> Color {
+        switch label.uppercased() {
+        case "CHARACTER": return .sjCoral
+        case "SETTING": return .sjSky
+        case "ACTION": return .green
+        case "DETAIL": return .purple
+        case "PROPS": return .sjGold
+        case "ATMOSPHERE": return .teal
+        default: return .gray
+        }
+    }
+
     private func variantColor(for label: String) -> Color {
         switch label {
         case "sanitized": return .green
@@ -843,7 +927,10 @@ struct MacTestHarnessView: View {
         case "highReliability": return .orange
         case "fallback": return .purple
         case "ultraSafe": return .red
-        default: return .gray
+        default:
+            // Multi-concept variants get a gradient from green (many) to orange (few)
+            if label.hasPrefix("multiConcept_") { return .sjSky }
+            return .gray
         }
     }
 
@@ -894,6 +981,7 @@ struct MacTestHarnessView: View {
         abImagesB = [:]
         imageTestImages = [:]
         imageTestVariantWins = [:]
+        imageTestConcepts = [:]
         imageTestDuration = nil
         statusText = "Generating story..."
 
@@ -1262,6 +1350,7 @@ struct MacTestHarnessView: View {
             let elapsed = start.duration(to: .now)
             imageTestDuration = Double(elapsed.components.seconds) + Double(elapsed.components.attoseconds) / 1e18
             imageTestVariantWins = illustrator.variantSuccessCounts
+            imageTestConcepts = illustrator.conceptDecompositions
             imageTestRunning = false
             statusText = ""
         }
@@ -2286,6 +2375,56 @@ private struct TestHarnessExport: Codable {
             let methodBSuccessCount: Int
             let totalPerMethod: Int
         }
+    }
+}
+
+// MARK: - Flow Layout (wrapping horizontal layout for concept chips)
+
+/// A simple wrapping horizontal layout that flows children into rows.
+private struct FlowLayout: Layout {
+    var spacing: CGFloat = 4
+
+    func sizeThatFits(proposal: ProposedViewSize, subviews: Subviews, cache: inout ()) -> CGSize {
+        let rows = computeRows(proposal: proposal, subviews: subviews)
+        var height: CGFloat = 0
+        for (i, row) in rows.enumerated() {
+            let rowHeight = row.map { subviews[$0].sizeThatFits(.unspecified).height }.max() ?? 0
+            height += rowHeight
+            if i > 0 { height += spacing }
+        }
+        return CGSize(width: proposal.width ?? 0, height: height)
+    }
+
+    func placeSubviews(in bounds: CGRect, proposal: ProposedViewSize, subviews: Subviews, cache: inout ()) {
+        let rows = computeRows(proposal: proposal, subviews: subviews)
+        var y = bounds.minY
+        for (i, row) in rows.enumerated() {
+            let rowHeight = row.map { subviews[$0].sizeThatFits(.unspecified).height }.max() ?? 0
+            if i > 0 { y += spacing }
+            var x = bounds.minX
+            for idx in row {
+                let size = subviews[idx].sizeThatFits(.unspecified)
+                subviews[idx].place(at: CGPoint(x: x, y: y), proposal: ProposedViewSize(size))
+                x += size.width + spacing
+            }
+            y += rowHeight
+        }
+    }
+
+    private func computeRows(proposal: ProposedViewSize, subviews: Subviews) -> [[Int]] {
+        let maxWidth = proposal.width ?? .infinity
+        var rows: [[Int]] = [[]]
+        var currentWidth: CGFloat = 0
+        for (i, subview) in subviews.enumerated() {
+            let size = subview.sizeThatFits(.unspecified)
+            if currentWidth + size.width > maxWidth && !rows[rows.count - 1].isEmpty {
+                rows.append([])
+                currentWidth = 0
+            }
+            rows[rows.count - 1].append(i)
+            currentWidth += size.width + spacing
+        }
+        return rows
     }
 }
 #endif

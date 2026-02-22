@@ -13,6 +13,10 @@ struct ImageGenerationDiagnosticEntry: Codable, Sendable {
     let errorType: String?
     let errorDescription: String?
     let durationSeconds: Double?
+    // Multi-concept diagnostics
+    let conceptCount: Int?
+    let conceptLabels: [String]?
+    let usedMultiConcept: Bool?
 }
 
 actor GenerationDiagnosticsLogger {
@@ -33,7 +37,10 @@ actor GenerationDiagnosticsLogger {
         retryable: Bool?,
         errorType: String,
         errorDescription: String,
-        durationSeconds: Double? = nil
+        durationSeconds: Double? = nil,
+        conceptCount: Int? = nil,
+        conceptLabels: [String]? = nil,
+        usedMultiConcept: Bool? = nil
     ) async {
         let entry = ImageGenerationDiagnosticEntry(
             timestamp: timestampFormatter.string(from: Date()),
@@ -47,7 +54,10 @@ actor GenerationDiagnosticsLogger {
             retryable: retryable,
             errorType: errorType,
             errorDescription: errorDescription,
-            durationSeconds: durationSeconds
+            durationSeconds: durationSeconds,
+            conceptCount: conceptCount,
+            conceptLabels: conceptLabels,
+            usedMultiConcept: usedMultiConcept
         )
         await append(entry)
     }
@@ -57,7 +67,10 @@ actor GenerationDiagnosticsLogger {
         prompt: String,
         errorType: String,
         errorDescription: String,
-        durationSeconds: Double? = nil
+        durationSeconds: Double? = nil,
+        conceptCount: Int? = nil,
+        conceptLabels: [String]? = nil,
+        usedMultiConcept: Bool? = nil
     ) async {
         let entry = ImageGenerationDiagnosticEntry(
             timestamp: timestampFormatter.string(from: Date()),
@@ -71,7 +84,10 @@ actor GenerationDiagnosticsLogger {
             retryable: nil,
             errorType: errorType,
             errorDescription: errorDescription,
-            durationSeconds: durationSeconds
+            durationSeconds: durationSeconds,
+            conceptCount: conceptCount,
+            conceptLabels: conceptLabels,
+            usedMultiConcept: usedMultiConcept
         )
         await append(entry)
     }
@@ -82,7 +98,10 @@ actor GenerationDiagnosticsLogger {
         variantLabel: String?,
         variantIndex: Int?,
         attemptIndex: Int?,
-        durationSeconds: Double? = nil
+        durationSeconds: Double? = nil,
+        conceptCount: Int? = nil,
+        conceptLabels: [String]? = nil,
+        usedMultiConcept: Bool? = nil
     ) async {
         let entry = ImageGenerationDiagnosticEntry(
             timestamp: timestampFormatter.string(from: Date()),
@@ -96,7 +115,10 @@ actor GenerationDiagnosticsLogger {
             retryable: nil,
             errorType: nil,
             errorDescription: nil,
-            durationSeconds: durationSeconds
+            durationSeconds: durationSeconds,
+            conceptCount: conceptCount,
+            conceptLabels: conceptLabels,
+            usedMultiConcept: usedMultiConcept
         )
         await append(entry)
     }
@@ -135,7 +157,10 @@ actor GenerationDiagnosticsLogger {
             retryable: nil,
             errorType: nil,
             errorDescription: nil,
-            durationSeconds: totalDurationSeconds
+            durationSeconds: totalDurationSeconds,
+            conceptCount: nil,
+            conceptLabels: nil,
+            usedMultiConcept: nil
         )
         await append(entry)
     }

@@ -337,6 +337,15 @@ enum ImagePromptEnricher {
         "robin", "sparrow", "eagle", "hawk", "fairy", "gnome", "elf",
         "wizard", "witch", "mermaid", "robot", "dinosaur", "caterpillar",
         "firefly", "dragonfly", "chipmunk", "hamster", "guinea pig",
+        // Dog breeds
+        "dachshund", "corgi", "poodle", "beagle", "bulldog", "dalmatian",
+        "retriever", "labrador", "terrier", "spaniel", "collie", "husky",
+        "pug", "chihuahua", "schnauzer", "greyhound", "mastiff",
+        // Cat breeds
+        "tabby", "siamese", "persian", "calico",
+        // Additional animals
+        "moose", "beaver", "wombat", "platypus", "alpaca", "llama",
+        "ferret", "chinchilla", "toucan", "hummingbird", "stork", "pelican",
         "boy", "girl", "child", "kid", "person", "man", "woman",
     ]
 

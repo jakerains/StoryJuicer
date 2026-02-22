@@ -32,6 +32,32 @@ struct PromptAnalysis: Sendable {
     var mood: String
 }
 
+// MARK: - Multi-Concept Decomposition for ImagePlayground
+
+/// A single labeled concept extracted from an image prompt, with a priority rank.
+/// Used to build multi-concept arrays for ImagePlayground, where each `.text()` concept
+/// becomes a first-class input the diffusion model must address.
+@Generable
+struct RankedImageConcept: Sendable {
+    @Guide(description: "A category label: CHARACTER, SETTING, ACTION, DETAIL, PROPS, or ATMOSPHERE")
+    var label: String
+    @Guide(description: "The short keyword chunk, 2-6 words. Only use words from the original prompt.")
+    var value: String
+}
+
+/// Foundation Model output for decomposing an image prompt into priority-ranked concepts.
+/// Concepts are ordered most-important-first (CHARACTER is always #1).
+@Generable
+struct ImageConceptDecomposition: Sendable {
+    @Guide(description: """
+        Array of concepts extracted from the prompt, ordered by importance (most important first). \
+        The character's species/breed must always be the first concept. \
+        Extract as many concepts as the prompt warrants — typically 4-8. \
+        Each concept should be a short keyword chunk (2-6 words) using only words from the original prompt.
+        """)
+    var concepts: [RankedImageConcept]
+}
+
 // MARK: - Character Description Repair (Upgrade 2)
 
 /// Foundation Model output for repairing malformed or missing character descriptions.
