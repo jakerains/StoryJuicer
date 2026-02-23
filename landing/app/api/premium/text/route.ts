@@ -1,13 +1,14 @@
 import { NextResponse } from "next/server";
 import { getPremiumConfig } from "@/lib/premium-config";
+import { hasDevBypass } from "@/lib/dev-bypass";
 
 export const maxDuration = 60;
 
 export async function POST(request: Request) {
   try {
-    // Kill switch — reject when premium is disabled at the infrastructure level
+    // Kill switch — reject when premium is disabled (unless dev bypass is present)
     const config = await getPremiumConfig();
-    if (!config.enabled) {
+    if (!config.enabled && !hasDevBypass(request)) {
       return NextResponse.json(
         { error: "Premium is currently disabled." },
         { status: 503 }

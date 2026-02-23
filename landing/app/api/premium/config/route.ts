@@ -6,12 +6,14 @@ import {
   IMAGE_MODELS,
   IMAGE_QUALITIES,
 } from "@/lib/premium-config";
+import { hasDevBypass } from "@/lib/dev-bypass";
 
-/** GET — return current config (public, no auth needed). */
-export async function GET() {
+/** GET — return current config. Reports enabled=true when dev bypass is present. */
+export async function GET(request: Request) {
   try {
     const config = await getPremiumConfig();
-    return NextResponse.json(config);
+    const enabled = config.enabled || hasDevBypass(request);
+    return NextResponse.json({ ...config, enabled });
   } catch (err) {
     console.error("Premium config GET error:", err);
     return NextResponse.json(
