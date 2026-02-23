@@ -17,11 +17,11 @@ enum AuthorImagePromptGenerator {
         onProgress: @escaping @MainActor @Sendable (String) -> Void
     ) async throws -> ImagePromptSheet {
         guard SystemLanguageModel.default.availability == .available else {
-            await onProgress("Using heuristic prompts (on-device model unavailable)...")
+            await onProgress("Planning the illustrations...")
             return heuristicPrompts(pages: pages, characterDescriptions: characterDescriptions)
         }
 
-        await onProgress("Writing illustration prompts...")
+        await onProgress("Dreaming up illustrations for each page...")
 
         let prompt = StoryPromptTemplates.imagePromptPassPrompt(
             characterDescriptions: characterDescriptions,

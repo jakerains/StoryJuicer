@@ -629,7 +629,7 @@ struct MainView: View {
 
     private func handlePhaseChange(_ phase: GenerationPhase) {
         switch phase {
-        case .generatingText, .generatingImages:
+        case .generatingText, .generatingCharacterSheet, .generatingImages:
             if route != .generating {
                 route = .generating
             }
@@ -644,7 +644,11 @@ struct MainView: View {
                 )
                 readerVM.originalConcept = viewModel.storyConcept
                 readerVM.parsedCharacters = viewModel.parsedCharacters
-                let settings = ModelSelectionStore.load()
+                var settings = ModelSelectionStore.load()
+                if PremiumStore.load().tier.isActive {
+                    settings.textProvider = .openAI
+                    settings.imageProvider = .openAI
+                }
                 readerVM.textProviderName = settings.textProvider.displayName
                 readerVM.imageProviderName = settings.imageProvider.displayName
                 readerVM.textModelName = settings.resolvedTextModelLabel
@@ -674,7 +678,11 @@ struct MainView: View {
             existing.displayOrder += 1
         }
 
-        let settings = ModelSelectionStore.load()
+        var settings = ModelSelectionStore.load()
+        if PremiumStore.load().tier.isActive {
+            settings.textProvider = .openAI
+            settings.imageProvider = .openAI
+        }
         let stored = StoredStorybook.from(
             storyBook: book,
             images: viewModel.generatedImages,

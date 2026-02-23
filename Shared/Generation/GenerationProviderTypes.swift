@@ -6,6 +6,7 @@ enum StoryTextProvider: String, CaseIterable, Codable, Sendable, Equatable, Iden
     case openRouter
     case togetherAI
     case huggingFace
+    case openAI
 
     var id: String { rawValue }
 
@@ -16,6 +17,7 @@ enum StoryTextProvider: String, CaseIterable, Codable, Sendable, Equatable, Iden
         case .openRouter:      return "OpenRouter"
         case .togetherAI:      return "Together AI"
         case .huggingFace:     return "Hugging Face"
+        case .openAI:          return "StoryFox Premium"
         }
     }
 
@@ -26,13 +28,14 @@ enum StoryTextProvider: String, CaseIterable, Codable, Sendable, Equatable, Iden
         case .openRouter:      return "Cloud models via OpenRouter API."
         case .togetherAI:      return "Cloud models via Together AI API."
         case .huggingFace:     return "Cloud models via Hugging Face Inference."
+        case .openAI:          return "Premium cloud-powered story generation."
         }
     }
 
     /// Whether this provider uses a cloud API (vs. on-device).
     var isCloud: Bool {
         switch self {
-        case .openRouter, .togetherAI, .huggingFace: return true
+        case .openRouter, .togetherAI, .huggingFace, .openAI: return true
         case .appleFoundation, .mlxSwift: return false
         }
     }
@@ -43,6 +46,7 @@ enum StoryTextProvider: String, CaseIterable, Codable, Sendable, Equatable, Iden
         case .openRouter:  return .openRouter
         case .togetherAI:  return .togetherAI
         case .huggingFace: return .huggingFace
+        case .openAI:      return .openAI
         case .appleFoundation, .mlxSwift: return nil
         }
     }
@@ -54,6 +58,7 @@ enum StoryImageProvider: String, CaseIterable, Codable, Sendable, Equatable, Ide
     case openRouter
     case togetherAI
     case huggingFace
+    case openAI
 
     var id: String { rawValue }
 
@@ -64,12 +69,13 @@ enum StoryImageProvider: String, CaseIterable, Codable, Sendable, Equatable, Ide
         case .openRouter:      return "OpenRouter"
         case .togetherAI:      return "Together AI"
         case .huggingFace:     return "Hugging Face"
+        case .openAI:          return "StoryFox Premium"
         }
     }
 
     var isCloud: Bool {
         switch self {
-        case .openRouter, .togetherAI, .huggingFace: return true
+        case .openRouter, .togetherAI, .huggingFace, .openAI: return true
         case .imagePlayground, .diffusers: return false
         }
     }
@@ -79,6 +85,7 @@ enum StoryImageProvider: String, CaseIterable, Codable, Sendable, Equatable, Ide
         case .openRouter:  return .openRouter
         case .togetherAI:  return .togetherAI
         case .huggingFace: return .huggingFace
+        case .openAI:      return .openAI
         case .imagePlayground, .diffusers: return nil
         }
     }
@@ -193,6 +200,8 @@ struct ModelSelectionSettings: Codable, Sendable, Equatable {
         case .togetherAI:
             let id = togetherTextModelID.trimmingCharacters(in: .whitespacesAndNewlines)
             return id.isEmpty ? "Together AI" : Self.shortModelName(id)
+        case .openAI:
+            return "StoryFox Premium"
         }
     }
 
@@ -215,6 +224,8 @@ struct ModelSelectionSettings: Codable, Sendable, Equatable {
         case .togetherAI:
             let id = togetherImageModelID.trimmingCharacters(in: .whitespacesAndNewlines)
             return id.isEmpty ? "Together AI" : Self.shortModelName(id)
+        case .openAI:
+            return "StoryFox Premium"
         }
     }
 

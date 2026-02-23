@@ -137,7 +137,11 @@ final class StoryQAViewModel {
     }
 
     private func generateQuestions(roundNumber: Int) async throws -> (questions: [StoryQuestion], done: Bool) {
-        let settings = ModelSelectionStore.load()
+        var settings = ModelSelectionStore.load()
+        let premium = PremiumStore.load()
+        if premium.tier.isActive {
+            settings.textProvider = .openAI
+        }
         let audience = settings.audienceMode
 
         let previousQA: [(question: String, answer: String)] = rounds.flatMap { round in
@@ -168,7 +172,7 @@ final class StoryQAViewModel {
                 userPrompt: userPrompt,
                 settings: settings
             )
-        case .openRouter, .togetherAI:
+        case .openRouter, .togetherAI, .openAI:
             guard let provider = settings.textProvider.cloudProvider else {
                 throw StoryQAError.providerUnavailable
             }
@@ -252,8 +256,14 @@ final class StoryQAViewModel {
         provider: CloudProvider,
         settings: ModelSelectionSettings
     ) async throws -> String {
-        guard let apiKey = CloudCredentialStore.bearerToken(for: provider) else {
-            throw StoryQAError.providerUnavailable
+        let apiKey: String
+        if provider.usesProxy {
+            apiKey = ""
+        } else {
+            guard let key = CloudCredentialStore.bearerToken(for: provider) else {
+                throw StoryQAError.providerUnavailable
+            }
+            apiKey = key
         }
 
         let modelID: String
@@ -261,6 +271,7 @@ final class StoryQAViewModel {
         case .openRouter: modelID = settings.openRouterTextModelID
         case .togetherAI: modelID = settings.togetherTextModelID
         case .huggingFace: modelID = settings.huggingFaceTextModelID
+        case .openAI:     modelID = provider.defaultTextModelID  // Server-controlled
         }
 
         let resolvedModel = modelID.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
@@ -275,7 +286,8 @@ final class StoryQAViewModel {
             userPrompt: userPrompt,
             temperature: 0.7,
             maxTokens: 1200,
-            extraHeaders: provider.extraHeaders
+            extraHeaders: provider.extraHeaders,
+            skipAuth: provider.usesProxy
         )
 
         if let text = StoryDecoding.extractTextContent(from: data) {

@@ -76,8 +76,8 @@ final class StoryGenerator {
                    attempt < GenerationConfig.guardrailRetryAttempts {
                     // Guardrail false positive — retry with a fresh session
                     lastError = error
-                    state = .generating(partialText: "Safety filter triggered, retrying...")
-                    onProgress("Safety filter triggered, retrying...")
+                    state = .generating(partialText: "Hmm, let's try that again...")
+                    onProgress("Hmm, let's try that again...")
                     try await Task.sleep(for: .milliseconds(500))
                     continue
                 }
@@ -98,8 +98,9 @@ final class StoryGenerator {
         let safeConcept = ContentSafetyPolicy.sanitizeConcept(concept)
 
         // ── Pass 1: Generate story text (no image prompts) ──
+        let pass1System = StoryPromptTemplates.systemInstructions
         let textSession = LanguageModelSession(
-            instructions: StoryPromptTemplates.systemInstructions
+            instructions: pass1System
         )
 
         let textPrompt = StoryPromptTemplates.textOnlyPrompt(
@@ -111,6 +112,9 @@ final class StoryGenerator {
             temperature: Double(GenerationConfig.defaultTemperature),
             maximumResponseTokens: GenerationConfig.maximumResponseTokens(for: pageCount)
         )
+
+        let pass1Clock = ContinuousClock()
+        let pass1Start = pass1Clock.now
 
         let textStream = textSession.streamResponse(
             to: textPrompt,
@@ -130,9 +134,24 @@ final class StoryGenerator {
         let textResponse = try await textStream.collect()
         let textOnly = textResponse.content
 
+        let pass1Duration = pass1Start.duration(to: pass1Clock.now)
+        let pass1Seconds = Double(pass1Duration.components.seconds) + Double(pass1Duration.components.attoseconds) / 1e18
+
+        // Log Pass 1
+        let verboseSession = await VerboseGenerationLogger.shared.activeSessionID ?? ""
+        await VerboseGenerationLogger.shared.logTextPass(
+            sessionID: verboseSession,
+            passLabel: "Pass 1: Story Text (Foundation Models)",
+            provider: "Apple Foundation Models", model: "on-device",
+            systemPrompt: pass1System, userPrompt: textPrompt,
+            rawResponse: "Title: \(textOnly.title)\nPages: \(textOnly.pages.count)\nCharacters: \(textOnly.characterDescriptions)",
+            parseSuccess: true,
+            duration: pass1Seconds
+        )
+
         // ── Pass 2: Generate image prompts with full story context ──
-        state = .generating(partialText: "Writing illustration prompts...")
-        onProgress("Writing illustration prompts...")
+        state = .generating(partialText: "Dreaming up illustrations for each page...")
+        onProgress("Dreaming up illustrations for each page...")
 
         let pages = textOnly.pages.map { (pageNumber: $0.pageNumber, text: $0.text) }
         let imagePromptPrompt = StoryPromptTemplates.imagePromptPassPrompt(
@@ -140,14 +159,18 @@ final class StoryGenerator {
             pages: pages
         )
 
+        let pass2System = "You are an art director for a children's storybook illustration team."
         let artSession = LanguageModelSession(
-            instructions: "You are an art director for a children's storybook illustration team."
+            instructions: pass2System
         )
 
         let promptOptions = GenerationOptions(
             temperature: Double(GenerationConfig.defaultTemperature),
             maximumResponseTokens: 600
         )
+
+        let pass2Clock = ContinuousClock()
+        let pass2Start = pass2Clock.now
 
         let promptResponse = try await artSession.respond(
             to: imagePromptPrompt,
@@ -156,6 +179,21 @@ final class StoryGenerator {
         )
 
         let promptSheet = promptResponse.content
+
+        let pass2Duration = pass2Start.duration(to: pass2Clock.now)
+        let pass2Seconds = Double(pass2Duration.components.seconds) + Double(pass2Duration.components.attoseconds) / 1e18
+
+        // Log Pass 2
+        let pass2ResponseSummary = promptSheet.prompts.map { "Page \($0.pageNumber): \($0.imagePrompt)" }.joined(separator: "\n")
+        await VerboseGenerationLogger.shared.logTextPass(
+            sessionID: verboseSession,
+            passLabel: "Pass 2: Image Prompts (Foundation Models)",
+            provider: "Apple Foundation Models", model: "on-device",
+            systemPrompt: pass2System, userPrompt: imagePromptPrompt,
+            rawResponse: pass2ResponseSummary,
+            parseSuccess: true,
+            duration: pass2Seconds
+        )
 
         // ── Merge text + prompts into a StoryBook ──
         let promptsByPage = Dictionary(
@@ -187,13 +225,23 @@ final class StoryGenerator {
             title: textOnly.title
         )
 
-        return StoryBook(
+        let story = StoryBook(
             title: textOnly.title,
             authorLine: textOnly.authorLine,
             moral: textOnly.moral,
             characterDescriptions: validatedDescriptions,
             pages: mergedPages
         )
+
+        // Log merged storybook
+        await VerboseGenerationLogger.shared.logMergedStoryBook(
+            sessionID: verboseSession,
+            title: story.title,
+            characterDescriptions: story.characterDescriptions,
+            pages: story.pages.map { ($0.pageNumber, $0.text, $0.imagePrompt) }
+        )
+
+        return story
     }
 
     /// Cancel any in-progress generation.

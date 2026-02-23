@@ -6,7 +6,7 @@ struct StoryBook {
     @Guide(description: "A captivating title for this children's storybook")
     var title: String
 
-    @Guide(description: "The author attribution line, e.g. 'Written by StoryFox AI'")
+    @Guide(description: "The author attribution line. Always use 'Written by StoryFox' unless the user explicitly provides an author name.")
     var authorLine: String
 
     @Guide(description: "A one-sentence summary of the story's moral or theme")
@@ -41,7 +41,7 @@ struct TextOnlyStoryBook: Sendable {
     @Guide(description: "A captivating title for this children's storybook")
     var title: String
 
-    @Guide(description: "The author attribution line, e.g. 'Written by StoryFox AI'")
+    @Guide(description: "The author attribution line. Always use 'Written by StoryFox' unless the user explicitly provides an author name.")
     var authorLine: String
 
     @Guide(description: "A one-sentence summary of the story's moral or theme")

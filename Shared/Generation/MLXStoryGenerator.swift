@@ -77,7 +77,7 @@ struct MLXStoryGenerator: StoryTextGenerating, Sendable {
             modelID: modelID,
             hub: hub
         ) { progress in
-            onProgress("Downloading MLX model… \(Int(progress.fractionCompleted * 100))%")
+            onProgress("Fetching the fox's quill… \(Int(progress.fractionCompleted * 100))%")
         }
     }
 
@@ -95,19 +95,22 @@ struct MLXStoryGenerator: StoryTextGenerating, Sendable {
             modelID: modelID,
             hub: hub
         ) { progress in
-            let message = "Downloading MLX model… \(Int(progress.fractionCompleted * 100))%"
+            let message = "Fetching the fox's quill… \(Int(progress.fractionCompleted * 100))%"
             Task { @MainActor in
                 onProgress(message)
             }
         }
 
         // ── Pass 1: Generate story text (no image prompts) ──
-        await onProgress("MLX model loaded. Drafting story text…")
+        await onProgress("Quill ready! Writing your story…")
+
+        let pass1System = StoryPromptTemplates.jsonModeSystemInstructions
+        let pass1UserPrompt = StoryPromptTemplates.textOnlyJSONPrompt(concept: safeConcept, pageCount: pageCount)
 
         let pass1Input = UserInput(
             chat: [
-                .system(StoryPromptTemplates.jsonModeSystemInstructions),
-                .user(StoryPromptTemplates.textOnlyJSONPrompt(concept: safeConcept, pageCount: pageCount))
+                .system(pass1System),
+                .user(pass1UserPrompt)
             ]
         )
 
@@ -116,6 +119,10 @@ struct MLXStoryGenerator: StoryTextGenerating, Sendable {
             maxTokens: GenerationConfig.maximumResponseTokens(for: pageCount),
             temperature: Float(GenerationConfig.defaultTemperature)
         )
+
+        let pass1Clock = ContinuousClock()
+        let pass1Start = pass1Clock.now
+
         let pass1Stream = try await container.generate(
             input: pass1LMInput,
             parameters: pass1Params
@@ -130,10 +137,13 @@ struct MLXStoryGenerator: StoryTextGenerating, Sendable {
                 pass1Text += chunk
                 if !hasReportedDraftingState {
                     hasReportedDraftingState = true
-                    await onProgress("Drafting story text...")
+                    await onProgress("Scribbling away...")
                 }
             }
         }
+
+        let pass1Duration = pass1Start.duration(to: pass1Clock.now)
+        let pass1Seconds = Double(pass1Duration.components.seconds) + Double(pass1Duration.components.attoseconds) / 1e18
 
         let pass1Trimmed = pass1Text.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !pass1Trimmed.isEmpty else {
@@ -142,19 +152,31 @@ struct MLXStoryGenerator: StoryTextGenerating, Sendable {
 
         let textDTO = try StoryDecoding.decodeTextOnlyStoryDTO(from: pass1Trimmed)
 
+        // Log Pass 1
+        let verboseSession = await VerboseGenerationLogger.shared.activeSessionID ?? ""
+        await VerboseGenerationLogger.shared.logTextPass(
+            sessionID: verboseSession,
+            passLabel: "Pass 1: Story Text (MLX Swift)",
+            provider: "MLX Swift", model: modelID,
+            systemPrompt: pass1System, userPrompt: pass1UserPrompt,
+            rawResponse: pass1Trimmed, parseSuccess: true,
+            duration: pass1Seconds
+        )
+
         // ── Pass 2: Generate image prompts with full story context ──
-        await onProgress("Writing illustration prompts...")
+        await onProgress("Dreaming up illustrations for each page...")
 
         let pages = textDTO.pages.map { (pageNumber: $0.pageNumber, text: $0.text) }
-        let pass2Prompt = StoryPromptTemplates.imagePromptJSONPrompt(
+        let pass2System = "You are an art director for a children's storybook. Respond with valid JSON only — no extra text."
+        let pass2UserPrompt = StoryPromptTemplates.imagePromptJSONPrompt(
             characterDescriptions: textDTO.characterDescriptions ?? "",
             pages: pages
         )
 
         let pass2Input = UserInput(
             chat: [
-                .system("You are an art director for a children's storybook. Respond with valid JSON only — no extra text."),
-                .user(pass2Prompt)
+                .system(pass2System),
+                .user(pass2UserPrompt)
             ]
         )
 
@@ -163,6 +185,10 @@ struct MLXStoryGenerator: StoryTextGenerating, Sendable {
             maxTokens: 600,
             temperature: Float(GenerationConfig.defaultTemperature)
         )
+
+        let pass2Clock = ContinuousClock()
+        let pass2Start = pass2Clock.now
+
         let pass2Stream = try await container.generate(
             input: pass2LMInput,
             parameters: pass2Params
@@ -177,12 +203,25 @@ struct MLXStoryGenerator: StoryTextGenerating, Sendable {
             }
         }
 
+        let pass2Duration = pass2Start.duration(to: pass2Clock.now)
+        let pass2Seconds = Double(pass2Duration.components.seconds) + Double(pass2Duration.components.attoseconds) / 1e18
+
         let pass2Trimmed = pass2Text.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !pass2Trimmed.isEmpty else {
             throw MLXStoryGeneratorError.emptyModelResponse
         }
 
         let promptSheet = try StoryDecoding.decodeImagePromptSheetDTO(from: pass2Trimmed)
+
+        // Log Pass 2
+        await VerboseGenerationLogger.shared.logTextPass(
+            sessionID: verboseSession,
+            passLabel: "Pass 2: Image Prompts (MLX Swift)",
+            provider: "MLX Swift", model: modelID,
+            systemPrompt: pass2System, userPrompt: pass2UserPrompt,
+            rawResponse: pass2Trimmed, parseSuccess: true,
+            duration: pass2Seconds
+        )
 
         // ── Merge text + prompts into a StoryBook ──
         let story = StoryDecoding.mergeIntoStoryBook(
@@ -194,6 +233,15 @@ struct MLXStoryGenerator: StoryTextGenerating, Sendable {
         guard !story.pages.isEmpty else {
             throw StoryDecodingError.contentRejected
         }
+
+        // Log merged storybook
+        await VerboseGenerationLogger.shared.logMergedStoryBook(
+            sessionID: verboseSession,
+            title: story.title,
+            characterDescriptions: story.characterDescriptions,
+            pages: story.pages.map { ($0.pageNumber, $0.text, $0.imagePrompt) }
+        )
+
         return story
     }
 

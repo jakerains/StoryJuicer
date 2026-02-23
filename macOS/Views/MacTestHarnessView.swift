@@ -2132,7 +2132,7 @@ struct MacTestHarnessView: View {
                     statusText = "MLX: \(text.prefix(60))..."
                 }
             )
-        case .openRouter, .togetherAI, .huggingFace:
+        case .openRouter, .togetherAI, .huggingFace, .openAI:
             guard let cloudProvider = settings.textProvider.cloudProvider else {
                 throw TestHarnessError.providerUnavailable
             }

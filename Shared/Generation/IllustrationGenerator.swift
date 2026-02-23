@@ -1,6 +1,7 @@
 import Foundation
 import FoundationModels
 import CoreGraphics
+import ImageIO
 import ImagePlayground
 import os
 
@@ -30,7 +31,7 @@ final class IllustrationGenerator {
         "ultraSafe",          // first 4 keywords + "sunny day"
     ]
 
-    private let router: ImageGenerationRouter
+    private var router: ImageGenerationRouter
 
     private(set) var state: IllustrationGenerationState = .idle
     private(set) var generatedImages: [Int: CGImage] = [:]
@@ -56,6 +57,16 @@ final class IllustrationGenerator {
         self.router = router
     }
 
+    /// Set character photos on the underlying router for reference-based generation.
+    func setCharacterPhotos(_ photos: [CharacterPhotoReference]) {
+        router.characterPhotos = photos
+    }
+
+    /// Set the premium tier on the underlying router for tier-aware generation.
+    func setPremiumTier(_ tier: PremiumTier) {
+        router.premiumTier = tier
+    }
+
     /// Generate illustrations for all story pages concurrently with limited parallelism.
     /// - Parameter parsedCharacters: Pre-parsed character entries from Foundation Model (Upgrade 1).
     ///   When provided, skips re-parsing `characterDescriptions` for every prompt.
@@ -63,6 +74,7 @@ final class IllustrationGenerator {
         for pages: [StoryPage],
         coverPrompt: String,
         characterDescriptions: String = "",
+        characterSheetImage: CGImage? = nil,
         style: IllustrationStyle,
         format: BookFormat = .standard,
         analyses: [Int: PromptAnalysis] = [:],
@@ -98,6 +110,23 @@ final class IllustrationGenerator {
         var completedCount = 0
         var failedJobs: [(index: Int, prompt: String)] = []
 
+        // When a character sheet is provided (premium path), convert it to JPEG data once
+        // and set it on the router so every cloud image generation call uses it as a reference.
+        // This gives visual consistency across all pages — the same character appearance everywhere.
+        let hasCharacterSheet = characterSheetImage != nil
+        if let sheet = characterSheetImage {
+            let sheetData = Self.cgImageToJPEGData(sheet)
+            if let data = sheetData {
+                let sheetRef = CharacterPhotoReference(
+                    name: "character_sheet",
+                    photo: sheet,
+                    photoData: data,
+                    role: "character_sheet"
+                )
+                router.characterPhotos = [sheetRef]
+            }
+        }
+
         // Phase A: Generate cover first (index 0) — becomes character reference for remaining pages
         var characterReferenceImage: CGImage?
         do {
@@ -122,13 +151,13 @@ final class IllustrationGenerator {
         }
 
         // Phase B: Generate page illustrations concurrently.
-        // When useReferenceImage is true, pass cover as character reference for page 1
-        // to anchor the character's visual appearance. When false, all pages rely on
-        // the enriched text prompt alone — lets you A/B test prompt quality.
+        // Premium path (character sheet): the router already has the sheet set as characterPhotos,
+        // so every cloud generation call includes it as a reference. No per-page ref needed.
+        // Standard path: when useReferenceImage is true, pass cover as reference for page 1 only.
         try await withThrowingTaskGroup(of: (Int, String, CGImage?).self) { group in
             for page in pages {
                 let enrichedPrompt = Self.enrichPromptWithCharacters(page.imagePrompt, characterDescriptions: characterDescriptions, parsedCharacters: parsedCharacters)
-                let refImage = (useReferenceImage && page.pageNumber == 1) ? characterReferenceImage : nil
+                let refImage = (!hasCharacterSheet && useReferenceImage && page.pageNumber == 1) ? characterReferenceImage : nil
                 let pageNum = page.pageNumber
                 group.addTask { [style] in
                     await semaphore.wait()
@@ -274,6 +303,60 @@ final class IllustrationGenerator {
         // Resolve analysis: explicit parameter > stored analyses > nil
         let resolvedAnalysis = analysis
             ?? pageIndex.flatMap { promptAnalyses[$0] }
+
+        // --- Cloud provider fast path ---
+        // Cloud image models (FLUX, gpt-image-1, etc.) handle full-length prompts natively.
+        // Skip the truncation variant chain which was designed for ImagePlayground's strict
+        // character limits and content safety filters.
+        var currentSettings = ModelSelectionStore.load()
+        if router.premiumTier.isActive {
+            currentSettings.imageProvider = .openAI
+        }
+        if currentSettings.imageProvider.isCloud {
+            let sanitizedPrompt = ContentSafetyPolicy.sanitizeConcept(prompt, maxLength: 1000)
+            let attemptStart = ContinuousClock.now
+            do {
+                let outcome = try await router.generateImage(
+                    prompt: sanitizedPrompt,
+                    style: style,
+                    format: format,
+                    referenceImage: referenceImage,
+                    onStatus: { [weak self] status in
+                        Task { @MainActor in self?.lastStatusMessage = status }
+                    }
+                )
+
+                let elapsed = attemptStart.duration(to: .now)
+                let secs = Double(elapsed.components.seconds) + Double(elapsed.components.attoseconds) / 1e18
+                Self.logger.info("Cloud image succeeded: duration=\(String(format: "%.1f", secs))s prompt_length=\(sanitizedPrompt.count)")
+                self.activeImageProvider = outcome.providerUsed
+                await GenerationDiagnosticsLogger.shared.logImageSuccess(
+                    provider: outcome.providerUsed,
+                    prompt: prompt,
+                    variantLabel: "cloudDirect",
+                    variantIndex: 0,
+                    attemptIndex: 0,
+                    durationSeconds: secs,
+                    usedMultiConcept: false
+                )
+                variantSuccessCounts["cloudDirect", default: 0] += 1
+                return outcome.image
+            } catch {
+                // Cloud failures are network/API errors, not content-safety truncation issues.
+                // No variant fallback needed — just propagate the error.
+                let elapsed = attemptStart.duration(to: .now)
+                let secs = Double(elapsed.components.seconds) + Double(elapsed.components.attoseconds) / 1e18
+                Self.logger.warning("Cloud image failed: duration=\(String(format: "%.1f", secs))s error=\(String(describing: error), privacy: .public)")
+                await GenerationDiagnosticsLogger.shared.logImageFailureFinal(
+                    provider: currentSettings.imageProvider,
+                    prompt: prompt,
+                    errorType: String(describing: type(of: error)),
+                    errorDescription: String(describing: error),
+                    durationSeconds: secs
+                )
+                throw error
+            }
+        }
 
         // --- Multi-concept progressive shedding (ImagePlayground only) ---
         // Try sending multiple short .text() concepts, dropping the least important on failure.
@@ -693,6 +776,18 @@ final class IllustrationGenerator {
         promptAnalyses = [:]
         conceptDecompositions = [:]
         state = .idle
+    }
+
+    /// Convert a CGImage to JPEG data for use as API reference image.
+    private static func cgImageToJPEGData(_ image: CGImage, quality: CGFloat = 0.85) -> Data? {
+        let mutableData = NSMutableData()
+        guard let destination = CGImageDestinationCreateWithData(mutableData as CFMutableData, "public.jpeg" as CFString, 1, nil) else {
+            return nil
+        }
+        let options: [CFString: Any] = [kCGImageDestinationLossyCompressionQuality: quality]
+        CGImageDestinationAddImage(destination, image, options as CFDictionary)
+        guard CGImageDestinationFinalize(destination) else { return nil }
+        return mutableData as Data
     }
 
     /// Build a character description prefix from the LLM-generated character sheet.

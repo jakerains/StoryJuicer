@@ -25,9 +25,11 @@ struct OpenAICompatibleClient: Sendable {
         userPrompt: String,
         temperature: Double = 0.7,
         maxTokens: Int = 4096,
-        extraHeaders: [String: String] = [:]
+        extraHeaders: [String: String] = [:],
+        skipAuth: Bool = false,
+        tier: String? = nil
     ) async throws -> Data {
-        let body: [String: Any] = [
+        var body: [String: Any] = [
             "model": model,
             "messages": [
                 ["role": "system", "content": systemPrompt],
@@ -36,11 +38,14 @@ struct OpenAICompatibleClient: Sendable {
             "temperature": temperature,
             "max_tokens": maxTokens
         ]
+        if let tier { body["tier"] = tier }
 
         var request = URLRequest(url: url)
         request.httpMethod = "POST"
         request.setValue("application/json", forHTTPHeaderField: "Content-Type")
-        request.setValue("Bearer \(apiKey)", forHTTPHeaderField: "Authorization")
+        if !skipAuth {
+            request.setValue("Bearer \(apiKey)", forHTTPHeaderField: "Authorization")
+        }
         request.timeoutInterval = TimeInterval(GenerationConfig.cloudTextGenerationTimeoutSeconds)
 
         for (key, value) in extraHeaders {
@@ -57,9 +62,69 @@ struct OpenAICompatibleClient: Sendable {
         return data
     }
 
+    // MARK: - Responses API
+
+    /// Sends a request in OpenAI Responses API format and returns the output text.
+    /// Used by the premium proxy path to avoid double-translation (Chat Completions ↔ Responses API).
+    func responsesAPI(
+        url: URL,
+        instructions: String,
+        userPrompt: String,
+        maxOutputTokens: Int = 16384,
+        tier: String? = nil,
+        extraHeaders: [String: String] = [:]
+    ) async throws -> String {
+        var body: [String: Any] = [
+            "input": [
+                ["role": "user", "content": userPrompt]
+            ],
+            "instructions": instructions,
+            "max_output_tokens": maxOutputTokens,
+        ]
+        if let tier { body["tier"] = tier }
+
+        var request = URLRequest(url: url)
+        request.httpMethod = "POST"
+        request.setValue("application/json", forHTTPHeaderField: "Content-Type")
+        request.timeoutInterval = TimeInterval(GenerationConfig.cloudTextGenerationTimeoutSeconds)
+
+        for (key, value) in extraHeaders {
+            request.setValue(value, forHTTPHeaderField: key)
+        }
+
+        request.httpBody = try JSONSerialization.data(withJSONObject: body)
+
+        Self.logger.info("Responses API → \(url.host() ?? "unknown", privacy: .public) tier=\(tier ?? "none", privacy: .public)")
+
+        let (data, response) = try await urlSession.data(for: request)
+        try validateHTTPResponse(response, data: data)
+
+        return try extractResponsesAPIText(from: data)
+    }
+
+    /// Parses the Responses API output format: `output[].content[].text`
+    private func extractResponsesAPIText(from data: Data) throws -> String {
+        guard let json = try? JSONSerialization.jsonObject(with: data) as? [String: Any],
+              let output = json["output"] as? [[String: Any]] else {
+            throw CloudProviderError.unparsableResponse
+        }
+
+        let text = output
+            .filter { ($0["type"] as? String) == "message" }
+            .compactMap { $0["content"] as? [[String: Any]] }
+            .flatMap { $0 }
+            .filter { ($0["type"] as? String) == "output_text" }
+            .compactMap { $0["text"] as? String }
+            .joined()
+
+        guard !text.isEmpty else { throw CloudProviderError.unparsableResponse }
+        return text
+    }
+
     // MARK: - Image Generation
 
     /// Sends an image generation request and returns a decoded CGImage.
+    /// - Parameter tier: Optional premium tier identifier sent to the proxy (e.g. `"plus"` or `"standard"`).
     func imageGeneration(
         url: URL,
         apiKey: String,
@@ -67,20 +132,27 @@ struct OpenAICompatibleClient: Sendable {
         prompt: String,
         size: String = "1024x1024",
         n: Int = 1,
-        extraHeaders: [String: String] = [:]
+        extraHeaders: [String: String] = [:],
+        skipAuth: Bool = false,
+        tier: String? = nil
     ) async throws -> CGImage {
-        let body: [String: Any] = [
+        var body: [String: Any] = [
             "model": model,
             "prompt": prompt,
             "size": size,
             "n": n,
             "response_format": "b64_json"
         ]
+        if let tier {
+            body["tier"] = tier
+        }
 
         var request = URLRequest(url: url)
         request.httpMethod = "POST"
         request.setValue("application/json", forHTTPHeaderField: "Content-Type")
-        request.setValue("Bearer \(apiKey)", forHTTPHeaderField: "Authorization")
+        if !skipAuth {
+            request.setValue("Bearer \(apiKey)", forHTTPHeaderField: "Authorization")
+        }
         request.timeoutInterval = TimeInterval(GenerationConfig.cloudImageGenerationTimeoutSeconds)
 
         for (key, value) in extraHeaders {

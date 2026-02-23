@@ -61,7 +61,7 @@ struct ImagePlaygroundImageGenerator: StoryImageGenerating {
         // failures give a clear error rather than a misleading timeout.
         let creator = try await Self.creatorCache.getOrCreate()
 
-        onStatus("Generating with Image Playground...")
+        onStatus("The fox's enchanted paintbrush is at work...")
 
         return try await withTimeout(
             seconds: GenerationConfig.imagePlaygroundGenerationTimeoutSeconds

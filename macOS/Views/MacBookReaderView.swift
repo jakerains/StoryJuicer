@@ -183,18 +183,20 @@ struct MacBookReaderView: View {
     /// A self-contained book page card with its own paper background.
     /// This is the unit that flips during page turn animations.
     private func pageSurface(for pageIndex: Int) -> some View {
-        ZStack {
+        let isCover = viewModel.isTitlePage(at: pageIndex)
+
+        return ZStack {
             // Paper backing
             pageBackground
 
-            // Page content
+            // Page content — content pages handle their own padding (full-bleed images)
             pageContent(for: pageIndex)
-                .padding(StoryJuicerGlassTokens.Spacing.large)
         }
         .frame(maxWidth: 780)
         .frame(maxWidth: .infinity, maxHeight: .infinity)
         .clipShape(.rect(cornerRadius: StoryJuicerGlassTokens.Radius.hero))
-        .shadow(color: .black.opacity(0.08), radius: 8, y: 4)
+        // Cover gets a heavier shadow to feel like a thick hardcover book
+        .shadow(color: .black.opacity(isCover ? 0.25 : 0.08), radius: isCover ? 20 : 8, y: isCover ? 8 : 4)
     }
 
     /// The opaque paper background for a single book page card.
@@ -216,39 +218,138 @@ struct MacBookReaderView: View {
     }
 
     private var titlePage: some View {
-        VStack(spacing: StoryJuicerGlassTokens.Spacing.large) {
-            Spacer(minLength: 0)
-
+        ZStack {
             if let coverImage = viewModel.images[0] {
+                // Layer 1: Full-bleed cover illustration
                 Image(decorative: coverImage, scale: 1.0)
                     .resizable()
-                    .scaledToFit()
-                    .clipShape(.rect(cornerRadius: StoryJuicerGlassTokens.Radius.hero))
-                    .shadow(color: StoryJuicerGlassTokens.Shadow.color, radius: 18, y: 10)
-                    .frame(maxHeight: 430)
+                    .scaledToFill()
+                    .frame(maxWidth: .infinity, maxHeight: .infinity)
+                    .clipped()
+
+                // Layer 2: Vignette — darkened edges simulate a curved hardcover surface
+                RadialGradient(
+                    colors: [.clear, .black.opacity(0.35)],
+                    center: .center,
+                    startRadius: 100,
+                    endRadius: 500
+                )
+                .blendMode(.multiply)
+
+                // Layer 3: Spine strip — narrow dark gradient on the leading edge
+                // simulating the bound spine where pages meet the cover
+                HStack(spacing: 0) {
+                    LinearGradient(
+                        colors: [.black.opacity(0.45), .black.opacity(0.15), .clear],
+                        startPoint: .leading,
+                        endPoint: .trailing
+                    )
+                    .frame(width: 20)
+                    Spacer()
+                }
+
+                // Layer 4: Top-edge highlight — light catching the top of a hardcover
+                VStack(spacing: 0) {
+                    LinearGradient(
+                        colors: [.white.opacity(0.15), .clear],
+                        startPoint: .top,
+                        endPoint: .bottom
+                    )
+                    .frame(height: 12)
+                    Spacer()
+                }
+
+                // Layer 5: Bottom scrim — stronger gradient for title legibility
+                VStack {
+                    Spacer()
+                    LinearGradient(
+                        colors: [.clear, .black.opacity(0.65)],
+                        startPoint: .top,
+                        endPoint: .bottom
+                    )
+                    .frame(height: 300)
+                }
+
+                // Layer 6–7: Title and author with embossed shadow treatment
+                VStack {
+                    Spacer()
+                    VStack(spacing: 8) {
+                        Text(viewModel.storyBook.title)
+                            .font(.system(size: 44, weight: .bold, design: .serif))
+                            .foregroundStyle(.white)
+                            .multilineTextAlignment(.center)
+                            .shadow(color: .black.opacity(0.8), radius: 1, y: 2)
+                            .shadow(color: .black.opacity(0.3), radius: 8, y: 4)
+
+                        Text(viewModel.storyBook.authorLine)
+                            .font(.system(.title3, design: .rounded).weight(.medium))
+                            .foregroundStyle(.white.opacity(0.9))
+                            .italic()
+                            .shadow(color: .black.opacity(0.6), radius: 1, y: 1)
+                            .shadow(color: .black.opacity(0.25), radius: 6, y: 3)
+                    }
+                    .padding(.horizontal, 44)
+                    .padding(.bottom, 40)
+                }
+
+                // Layer 8: Decorative gold foil border — like a hardcover book frame
+                RoundedRectangle(cornerRadius: StoryJuicerGlassTokens.Radius.hero - 4)
+                    .strokeBorder(Color.sjGold.opacity(0.4), lineWidth: 1.5)
+                    .padding(16)
             } else {
                 coverPlaceholder
+                    .padding(StoryJuicerGlassTokens.Spacing.large)
             }
+        }
+    }
 
-            VStack(spacing: StoryJuicerGlassTokens.Spacing.small) {
-                Text(viewModel.storyBook.title)
-                    .font(StoryJuicerTypography.readerTitle)
-                    .foregroundStyle(Color.sjGlassInk)
-                    .multilineTextAlignment(.center)
+    // MARK: - Storybook Page Layout
 
-                Text(viewModel.storyBook.authorLine)
-                    .font(.system(.title3, design: .rounded).weight(.medium))
-                    .foregroundStyle(Color.sjSecondaryText)
-                    .italic()
+    /// Determines text box position based on text length, creating variety across pages.
+    private enum StoryPageLayout {
+        case bottomStrip   // < 100 chars — compact centered pill at bottom
+        case bottomPanel   // 100–200 chars — wider panel spanning bottom ~25%
+        case sideBox       // > 200 chars — box anchored left (even) or right (odd)
+
+        static func layout(for text: String) -> StoryPageLayout {
+            let length = text.count
+            if length < 100 {
+                return .bottomStrip
+            } else if length <= 200 {
+                return .bottomPanel
+            } else {
+                return .sideBox
             }
-            .padding(StoryJuicerGlassTokens.Spacing.large)
-            .frame(maxWidth: 700)
-            .sjGlassCard(
-                tint: .sjGlassSoft.opacity(StoryJuicerGlassTokens.Tint.standard),
-                cornerRadius: StoryJuicerGlassTokens.Radius.hero
-            )
+        }
+    }
 
-            Spacer(minLength: 0)
+    /// Parchment-styled text container that floats over the full-bleed illustration.
+    /// Uses solid color instead of `.ultraThinMaterial` because `PageTurnView`'s
+    /// `.drawingGroup()` rasterizes to Metal, breaking material blur effects.
+    private struct StoryTextBox: View {
+        let text: String
+
+        var body: some View {
+            Text(text)
+                .font(StoryJuicerTypography.readerBody)
+                .foregroundStyle(.black)
+                .lineSpacing(8)
+                .multilineTextAlignment(.leading)
+                .padding(.horizontal, StoryJuicerGlassTokens.Spacing.large)
+                .padding(.vertical, StoryJuicerGlassTokens.Spacing.medium)
+                .background {
+                    ZStack {
+                        RoundedRectangle(cornerRadius: 16)
+                            .fill(.white)
+                        Image("PaperTexture")
+                            .resizable(resizingMode: .tile)
+                            .clipShape(RoundedRectangle(cornerRadius: 16))
+                            .opacity(0.55)
+                        RoundedRectangle(cornerRadius: 16)
+                            .strokeBorder(Color.sjBorder.opacity(0.3), lineWidth: 0.5)
+                    }
+                }
+                .shadow(color: .black.opacity(0.18), radius: 12, y: 6)
         }
     }
 
@@ -256,34 +357,66 @@ struct MacBookReaderView: View {
         let page = viewModel.storyPage(at: pageIndex)
         let pageImage = viewModel.image(at: pageIndex)
 
-        return VStack(spacing: StoryJuicerGlassTokens.Spacing.medium) {
+        return ZStack {
             if let page {
-                Group {
-                    if let pageImage {
-                        Image(decorative: pageImage, scale: 1.0)
-                            .resizable()
-                            .scaledToFit()
-                            .clipShape(.rect(cornerRadius: StoryJuicerGlassTokens.Radius.card))
-                            .shadow(color: Color.black.opacity(0.12), radius: 12, y: 6)
-                    } else {
-                        imagePlaceholder(for: page)
-                    }
+                // Full-bleed illustration
+                if let pageImage {
+                    Image(decorative: pageImage, scale: 1.0)
+                        .resizable()
+                        .scaledToFill()
+                        .frame(maxWidth: .infinity, maxHeight: .infinity)
+                        .clipped()
+                } else {
+                    imagePlaceholder(for: page)
+                        .frame(maxWidth: .infinity, maxHeight: .infinity)
                 }
-                .frame(maxHeight: .infinity)
 
-                Text(page.text)
-                    .font(StoryJuicerTypography.readerBody)
-                    .foregroundStyle(Color.sjText)
-                    .lineSpacing(10)
-                    .multilineTextAlignment(.center)
-                    .padding(.horizontal, 40)
-                    .padding(.vertical, StoryJuicerGlassTokens.Spacing.large)
-                    .frame(maxWidth: .infinity)
-                    .sjGlassCard(
-                        tint: .sjReadableCard.opacity(StoryJuicerGlassTokens.Tint.standard),
-                        cornerRadius: StoryJuicerGlassTokens.Radius.card
-                    )
+                // Text overlay positioned based on text length
+                textOverlay(for: page, at: pageIndex)
             }
+        }
+    }
+
+    /// Positions the text box over the illustration based on layout template.
+    @ViewBuilder
+    private func textOverlay(for page: StoryPage, at pageIndex: Int) -> some View {
+        let layout = StoryPageLayout.layout(for: page.text)
+
+        switch layout {
+        case .bottomStrip:
+            VStack {
+                Spacer()
+                StoryTextBox(text: page.text)
+                    .frame(maxWidth: 500)
+                    .padding(.horizontal, StoryJuicerGlassTokens.Spacing.large)
+                    .padding(.bottom, StoryJuicerGlassTokens.Spacing.large)
+            }
+            .frame(maxWidth: .infinity, maxHeight: .infinity)
+
+        case .bottomPanel:
+            VStack {
+                Spacer()
+                StoryTextBox(text: page.text)
+                    .frame(maxWidth: 620)
+                    .padding(.horizontal, StoryJuicerGlassTokens.Spacing.large)
+                    .padding(.bottom, StoryJuicerGlassTokens.Spacing.large)
+            }
+            .frame(maxWidth: .infinity, maxHeight: .infinity)
+
+        case .sideBox:
+            let alignLeft = pageIndex % 2 == 0
+            VStack {
+                Spacer()
+                HStack {
+                    if !alignLeft { Spacer(minLength: StoryJuicerGlassTokens.Spacing.xLarge) }
+                    StoryTextBox(text: page.text)
+                        .frame(maxWidth: 420)
+                    if alignLeft { Spacer(minLength: StoryJuicerGlassTokens.Spacing.xLarge) }
+                }
+                .padding(.horizontal, StoryJuicerGlassTokens.Spacing.medium)
+                .padding(.bottom, StoryJuicerGlassTokens.Spacing.large)
+            }
+            .frame(maxWidth: .infinity, maxHeight: .infinity)
         }
     }
 
@@ -470,6 +603,7 @@ struct MacBookReaderView: View {
 
             Spacer(minLength: 0)
         }
+        .padding(StoryJuicerGlassTokens.Spacing.large)
     }
 
     private var storyFoxStamp: some View {

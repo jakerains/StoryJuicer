@@ -13,7 +13,7 @@ enum CloudProvider: String, CaseIterable, Codable, Sendable, Equatable, Identifi
         case .openRouter:  return "OpenRouter"
         case .togetherAI:  return "Together AI"
         case .huggingFace: return "Hugging Face"
-        case .openAI:      return "OpenAI"
+        case .openAI:      return "StoryFox Premium"
         }
     }
 

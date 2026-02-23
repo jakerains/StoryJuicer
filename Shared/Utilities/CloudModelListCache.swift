@@ -79,6 +79,8 @@ final class CloudModelListCache {
             return try await fetchTogetherModels(apiKey: apiKey)
         case .huggingFace:
             return try await fetchHuggingFaceModels(apiKey: apiKey)
+        case .openAI:
+            return ([], [])  // Server-controlled models, no client-side list needed
         }
     }
 

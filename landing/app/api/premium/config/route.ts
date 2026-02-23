@@ -45,12 +45,18 @@ export async function POST(request: Request) {
     }
 
     const body = await request.json();
-    const { textModel, imageModel, imageQuality, imageModelPlus, imageQualityPlus } = body;
+    const { textModel, textModelPlus, imageModel, imageQuality, imageModelPlus, imageQualityPlus } = body;
 
     // Validate values
     if (textModel && !TEXT_MODELS.includes(textModel)) {
       return NextResponse.json(
         { error: `textModel must be one of: ${TEXT_MODELS.join(", ")}` },
+        { status: 400 }
+      );
+    }
+    if (textModelPlus && !TEXT_MODELS.includes(textModelPlus)) {
+      return NextResponse.json(
+        { error: `textModelPlus must be one of: ${TEXT_MODELS.join(", ")}` },
         { status: 400 }
       );
     }
@@ -83,6 +89,7 @@ export async function POST(request: Request) {
     const current = await getPremiumConfig();
     const updated = {
       textModel: textModel ?? current.textModel,
+      textModelPlus: textModelPlus ?? current.textModelPlus,
       imageModel: imageModel ?? current.imageModel,
       imageQuality: imageQuality ?? current.imageQuality,
       imageModelPlus: imageModelPlus ?? current.imageModelPlus,

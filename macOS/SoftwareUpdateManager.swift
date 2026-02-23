@@ -81,6 +81,8 @@ private final class UpdaterDelegate: NSObject, SPUUpdaterDelegate {
 // MARK: - KVO Bridge
 
 /// Observes `SPUUpdater.canCheckForUpdates` via KVO and forwards changes to a callback.
+/// Must be created on @MainActor because `canCheckForUpdates` is MainActor-isolated in Sparkle.
+@MainActor
 private final class UpdaterKVOObserver: NSObject {
     private var observation: NSKeyValueObservation?
     private let onChange: @Sendable (Bool) -> Void

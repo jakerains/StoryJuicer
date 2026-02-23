@@ -3,6 +3,7 @@ import { neon } from "@neondatabase/serverless";
 export interface PremiumConfig {
   enabled: boolean;
   textModel: string;
+  textModelPlus: string;
   imageModel: string;
   imageQuality: string;
   imageModelPlus: string;
@@ -11,6 +12,7 @@ export interface PremiumConfig {
 
 const DEFAULTS: Omit<PremiumConfig, "enabled"> = {
   textModel: "gpt-5-mini",
+  textModelPlus: "gpt-5.2",
   imageModel: "gpt-image-1-mini",
   imageQuality: "low",
   imageModelPlus: "gpt-image-1.5",
@@ -45,6 +47,7 @@ export async function getPremiumConfig(): Promise<PremiumConfig> {
       const rows = await sql`
         SELECT
           text_model,
+          COALESCE(text_model_plus, ${DEFAULTS.textModelPlus}) AS text_model_plus,
           image_model,
           image_quality,
           COALESCE(image_model_plus, ${DEFAULTS.imageModelPlus}) AS image_model_plus,
@@ -55,6 +58,7 @@ export async function getPremiumConfig(): Promise<PremiumConfig> {
         return {
           enabled,
           textModel: rows[0].text_model,
+          textModelPlus: rows[0].text_model_plus,
           imageModel: rows[0].image_model,
           imageQuality: rows[0].image_quality,
           imageModelPlus: rows[0].image_model_plus,
@@ -91,6 +95,7 @@ export async function setPremiumConfig(
   await sql`
     UPDATE premium_config
     SET text_model = ${config.textModel},
+        text_model_plus = ${config.textModelPlus},
         image_model = ${config.imageModel},
         image_quality = ${config.imageQuality},
         image_model_plus = ${config.imageModelPlus},
@@ -101,6 +106,6 @@ export async function setPremiumConfig(
 }
 
 /** Available model choices for the admin UI. */
-export const TEXT_MODELS = ["gpt-5-mini", "GPT-5.2"] as const;
+export const TEXT_MODELS = ["gpt-5-mini", "gpt-5.2"] as const;
 export const IMAGE_MODELS = ["gpt-image-1-mini", "gpt-image-1.5"] as const;
 export const IMAGE_QUALITIES = ["low", "medium", "high"] as const;

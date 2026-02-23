@@ -11,10 +11,25 @@ struct DebugSettingsTab: View {
 
     var body: some View {
         VStack(alignment: .leading, spacing: StoryJuicerGlassTokens.Spacing.xLarge) {
+            verboseLoggingSection
             devBypassSection
             premiumProxySection
             cloudProviderTestsSection
             diagnosticsSection
+        }
+    }
+
+    // MARK: - Verbose Generation Logging
+
+    private var verboseLoggingSection: some View {
+        SettingsPanelCard {
+            SettingsSectionHeader(
+                title: "Generation Logging",
+                subtitle: "Write a detailed Markdown log for every generation session — captures all prompts, responses, and timing.",
+                systemImage: "doc.text.magnifyingglass"
+            )
+
+            VerboseLoggingControls()
         }
     }
 
@@ -92,15 +107,56 @@ struct DebugSettingsTab: View {
             )
 
             let premiumState = PremiumStore.load()
+            let effective = effectiveSettings(premium: premiumState)
 
             diagnosticRow("Premium Tier", value: premiumState.tier.displayName)
-            diagnosticRow("Text Provider", value: settings.textProvider.displayName)
-            diagnosticRow("Image Provider", value: settings.imageProvider.displayName)
-            diagnosticRow("Text Model", value: settings.resolvedTextModelLabel)
-            diagnosticRow("Image Model", value: settings.resolvedImageModelLabel)
+            diagnosticRow("Text Provider", value: effective.textProvider)
+            diagnosticRow("Image Provider", value: effective.imageProvider)
+            diagnosticRow("Text Model", value: effective.textModel)
+            diagnosticRow("Image Model", value: effective.imageModel)
             diagnosticRow("App Version", value: appVersion)
             diagnosticRow("Build", value: appBuild)
+
+            Divider()
+                .padding(.vertical, StoryJuicerGlassTokens.Spacing.small)
+
+            CopyDebugInfoButton(
+                premiumTier: premiumState.tier.displayName,
+                textProvider: effective.textProvider,
+                imageProvider: effective.imageProvider,
+                textModel: effective.textModel,
+                imageModel: effective.imageModel,
+                appVersion: appVersion,
+                appBuild: appBuild
+            )
         }
+    }
+
+    /// Computes the effective (runtime) providers and models, applying the
+    /// same premium override that `CreationViewModel.squeezeStory()` uses.
+    private func effectiveSettings(premium: PremiumState) -> (textProvider: String, imageProvider: String, textModel: String, imageModel: String) {
+        if premium.tier == .premiumPlus {
+            return (
+                textProvider: "OpenAI (Premium Plus)",
+                imageProvider: "OpenAI (Premium Plus)",
+                textModel: "gpt-5.2",
+                imageModel: "gpt-image-1.5"
+            )
+        }
+        if premium.tier == .premium {
+            return (
+                textProvider: "OpenAI (Premium)",
+                imageProvider: "OpenAI (Premium)",
+                textModel: CloudProvider.openAI.defaultTextModelID,
+                imageModel: CloudProvider.openAI.defaultImageModelID
+            )
+        }
+        return (
+            textProvider: settings.textProvider.displayName,
+            imageProvider: settings.imageProvider.displayName,
+            textModel: settings.resolvedTextModelLabel,
+            imageModel: settings.resolvedImageModelLabel
+        )
     }
 
     private func diagnosticRow(_ label: String, value: String) -> some View {
@@ -223,24 +279,16 @@ private struct PremiumTextTestRow: View {
 
         do {
             let client = OpenAICompatibleClient()
-            let data = try await client.chatCompletion(
+            let text = try await client.responsesAPI(
                 url: CloudProvider.openAI.chatCompletionURL,
-                apiKey: "",
-                model: CloudProvider.openAI.defaultTextModelID,
-                systemPrompt: "You are a helpful assistant.",
+                instructions: "You are a helpful assistant.",
                 userPrompt: "Say hello in one sentence.",
-                maxTokens: 60,
-                extraHeaders: CloudProvider.openAI.extraHeaders,
-                skipAuth: true
+                maxOutputTokens: 60,
+                tier: "standard",
+                extraHeaders: CloudProvider.openAI.extraHeaders
             )
-            if let text = StoryDecoding.extractTextContent(from: data) {
-                let snippet = String(text.trimmingCharacters(in: .whitespacesAndNewlines).prefix(120))
-                result = "Text OK: \(snippet)"
-            } else if let raw = String(data: data, encoding: .utf8) {
-                result = "Text OK (raw): \(String(raw.prefix(120)))"
-            } else {
-                result = "Response received but could not parse text."
-            }
+            let snippet = String(text.trimmingCharacters(in: .whitespacesAndNewlines).prefix(120))
+            result = "Text OK: \(snippet)"
         } catch {
             result = "Text failed: \(verboseError(error))"
         }
@@ -642,6 +690,106 @@ private struct CloudProviderTestGroup: View {
         }
 
         isTestingImage = false
+    }
+}
+
+// MARK: - Verbose Logging Controls
+
+private struct VerboseLoggingControls: View {
+    @AppStorage("verboseLoggingEnabled") private var verboseLoggingEnabled: Bool = false
+    @AppStorage("verboseLoggingFolderPath") private var verboseLoggingFolderPath: String = ""
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: StoryJuicerGlassTokens.Spacing.medium) {
+            Toggle("Enable verbose generation logging", isOn: $verboseLoggingEnabled)
+                .font(StoryJuicerTypography.settingsBody)
+
+            if verboseLoggingEnabled {
+                HStack(spacing: StoryJuicerGlassTokens.Spacing.small) {
+                    Text(abbreviatedPath)
+                        .font(StoryJuicerTypography.settingsMeta.monospaced())
+                        .foregroundStyle(Color.sjSecondaryText)
+                        .lineLimit(1)
+                        .truncationMode(.middle)
+
+                    Spacer()
+
+                    Button("Choose\u{2026}") {
+                        chooseFolder()
+                    }
+                    .buttonStyle(.glass)
+                    .controlSize(.small)
+                }
+
+                if !verboseLoggingFolderPath.isEmpty {
+                    Button {
+                        NSWorkspace.shared.open(URL(fileURLWithPath: verboseLoggingFolderPath))
+                    } label: {
+                        Label("Open Logs Folder", systemImage: "folder")
+                    }
+                    .buttonStyle(.glass)
+                    .controlSize(.small)
+                }
+            }
+        }
+    }
+
+    private var abbreviatedPath: String {
+        guard !verboseLoggingFolderPath.isEmpty else { return "No folder selected" }
+        return (verboseLoggingFolderPath as NSString).abbreviatingWithTildeInPath
+    }
+
+    private func chooseFolder() {
+        let panel = NSOpenPanel()
+        panel.canChooseFiles = false
+        panel.canChooseDirectories = true
+        panel.canCreateDirectories = true
+        panel.allowsMultipleSelection = false
+        panel.prompt = "Select"
+        panel.message = "Choose a folder for verbose generation logs"
+
+        if panel.runModal() == .OK, let url = panel.url {
+            verboseLoggingFolderPath = url.path
+        }
+    }
+}
+
+// MARK: - Copy Debug Info Button
+
+private struct CopyDebugInfoButton: View {
+    let premiumTier: String
+    let textProvider: String
+    let imageProvider: String
+    let textModel: String
+    let imageModel: String
+    let appVersion: String
+    let appBuild: String
+
+    @State private var copied = false
+
+    var body: some View {
+        Button {
+            let info = [
+                "Premium Tier: \(premiumTier)",
+                "Text Provider: \(textProvider)",
+                "Image Provider: \(imageProvider)",
+                "Text Model: \(textModel)",
+                "Image Model: \(imageModel)",
+                "App Version: \(appVersion)",
+                "Build: \(appBuild)",
+                "macOS: \(ProcessInfo.processInfo.operatingSystemVersionString)"
+            ].joined(separator: "\n")
+
+            NSPasteboard.general.clearContents()
+            NSPasteboard.general.setString(info, forType: .string)
+            copied = true
+            DispatchQueue.main.asyncAfter(deadline: .now() + 2) { copied = false }
+        } label: {
+            Label(copied ? "Copied!" : "Copy Debug Info", systemImage: copied ? "checkmark" : "doc.on.doc")
+                .font(.system(size: 12, weight: .medium))
+        }
+        .buttonStyle(.glass)
+        .controlSize(.small)
     }
 }
 

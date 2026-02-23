@@ -70,7 +70,7 @@ enum StoryPromptTemplates {
         Return JSON with this exact shape:
         {
           "title": "string",
-          "authorLine": "string",
+          "authorLine": "Always 'Written by StoryFox' unless user specifies an author",
           "moral": "string",
           "characterDescriptions": "One line per character: name - species or breed, colors, clothing, unique feature. Use the species from the concept — do not substitute a different animal.",
           "pages": [
@@ -105,6 +105,38 @@ enum StoryPromptTemplates {
         """
     }
 
+    // MARK: - Character Sheet Prompt
+
+    /// Builds a prompt for generating a character reference sheet in the book's art style.
+    /// Used in the premium pipeline to create a visual anchor for all page illustrations.
+    ///
+    /// - Parameters:
+    ///   - characterDescription: The main character's description from `characterDescriptions`
+    ///     (e.g., "Luna - a small orange fox with bright green eyes and a tattered green scarf").
+    ///   - style: The book's selected illustration style, used to match the sheet's art direction.
+    /// - Returns: A prompt suitable for image generation (edit or text-to-image).
+    static func characterSheetPrompt(
+        characterDescription: String,
+        style: IllustrationStyle
+    ) -> String {
+        let styleSuffix: String
+        switch style {
+        case .illustration:
+            styleSuffix = "Warm watercolor textures, children's book illustration style"
+        case .animation:
+            styleSuffix = "3D animated cartoon style, Pixar-inspired, soft lighting"
+        case .sketch:
+            styleSuffix = "Pencil sketch style, hand-drawn, delicate linework"
+        }
+
+        return """
+        Character reference sheet: [\(characterDescription)]. \
+        Full body, front-facing pose, simple clean storybook background. \
+        [\(styleSuffix)]. \
+        No text, words, or letters.
+        """
+    }
+
     // MARK: - Two-Pass Prompts
 
     /// Pass 1: Generate story text only — no image prompts.
@@ -130,11 +162,14 @@ enum StoryPromptTemplates {
     /// visual consistency across all pages and reference the full story arc.
     static func imagePromptPassPrompt(
         characterDescriptions: String,
-        pages: [(pageNumber: Int, text: String)]
+        pages: [(pageNumber: Int, text: String)],
+        style: IllustrationStyle = .illustration
     ) -> String {
         let pageList = pages.map { "Page \($0.pageNumber): \($0.text)" }.joined(separator: "\n")
         return """
         You are an art director writing illustration prompts for a children's storybook.
+
+        ART STYLE: \(styleDirective(for: style))
 
         CHARACTER SHEET:
         \(characterDescriptions)
@@ -146,6 +181,8 @@ enum StoryPromptTemplates {
         Generate exactly \(pages.count) prompts, one per page.
 
         CRITICAL RULES:
+        - EVERY prompt must describe the scene in \(style.displayName.lowercased()) style — \
+        include medium-specific textures, lighting, and rendering language.
         - Describe every character by their SPECIES and VISUAL APPEARANCE — never by name alone. \
         Image models cannot look up character names.
         - Always state WHAT the character is (species/type), their COLOR, and what they WEAR.
@@ -167,7 +204,7 @@ enum StoryPromptTemplates {
         Return JSON with this exact shape:
         {
           "title": "string",
-          "authorLine": "string",
+          "authorLine": "Always 'Written by StoryFox' unless user specifies an author",
           "moral": "string",
           "characterDescriptions": "One line per character: name - species or breed, colors, clothing, unique feature. Use the species from the concept — do not substitute a different animal.",
           "pages": [
@@ -189,11 +226,14 @@ enum StoryPromptTemplates {
     /// For generators that produce raw JSON text (MLX, Cloud).
     static func imagePromptJSONPrompt(
         characterDescriptions: String,
-        pages: [(pageNumber: Int, text: String)]
+        pages: [(pageNumber: Int, text: String)],
+        style: IllustrationStyle = .illustration
     ) -> String {
         let pageList = pages.map { "Page \($0.pageNumber): \($0.text)" }.joined(separator: "\n")
         return """
         You are an art director writing illustration prompts for a children's storybook.
+
+        ART STYLE: \(styleDirective(for: style))
 
         CHARACTER SHEET:
         \(characterDescriptions)
@@ -214,12 +254,170 @@ enum StoryPromptTemplates {
         Generate exactly \(pages.count) prompts, one per page.
 
         CRITICAL RULES:
+        - EVERY prompt must describe the scene in \(style.displayName.lowercased()) style — \
+        include medium-specific textures, lighting, and rendering language.
         - Describe every character by their SPECIES and VISUAL APPEARANCE — never by name alone. \
         Image models cannot look up character names.
         - Always state WHAT the character is (species/type), their COLOR, and what they WEAR.
         - Include setting, action, expressions, mood, and lighting.
         - Maintain visual consistency: same character colors, clothing, and features across all pages.
         - Reference earlier and later scenes to ensure the illustrations tell a cohesive visual story.
+        - Do NOT include any text, words, or letters in the scene descriptions.
+        """
+    }
+
+    // MARK: - Style Directives
+
+    /// Brief art-direction string for standard-tier prompts.
+    private static func styleDirective(for style: IllustrationStyle) -> String {
+        switch style {
+        case .illustration:
+            return "Children's book watercolor illustration — soft brushstrokes, warm muted palette, hand-painted textures, gentle lighting."
+        case .animation:
+            return "3D animated cartoon (Pixar-inspired) — smooth rounded forms, soft ambient occlusion, warm rim lighting, playful proportions."
+        case .sketch:
+            return "Pencil sketch illustration — delicate linework, crosshatching for shading, hand-drawn quality, minimal color."
+        }
+    }
+
+    /// Concise art-direction string for premium-tier prompts.
+    /// Kept short so the LLM doesn't echo verbose style text into every prompt.
+    private static func premiumStyleDirective(for style: IllustrationStyle) -> String {
+        switch style {
+        case .illustration:
+            return "Children's book watercolor illustration — warm palette, soft brushstrokes, hand-painted quality."
+        case .animation:
+            return "3D animated cartoon (Pixar-inspired) — soft lighting, rounded forms, warm rim lighting."
+        case .sketch:
+            return "Pencil sketch illustration — expressive linework, crosshatching, hand-drawn quality."
+        }
+    }
+
+    // MARK: - Premium Prompt Templates
+
+    /// Enhanced system instructions for premium tiers.
+    /// Builds on `systemInstructions` with a literary-craft emphasis.
+    static var premiumSystemInstructions: String {
+        systemInstructions + """
+         You are writing for a premium storybook service. \
+        Prioritize literary craft, emotional resonance, and rich sensory detail. \
+        Every page should feel like a beautifully written children's book that parents enjoy reading aloud. \
+        Use varied sentence rhythm — mix short, punchy sentences with longer, flowing ones. \
+        Weave in multi-sensory descriptions (sounds, textures, smells) alongside visual imagery.
+        """
+    }
+
+    /// JSON variant of premium system instructions.
+    static var premiumJSONModeSystemInstructions: String {
+        premiumSystemInstructions + "\nRespond with valid JSON only — no extra text before or after."
+    }
+
+    /// Pass 1 (Premium): Generate story text with richer narrative instructions.
+    /// Same JSON schema as `textOnlyJSONPrompt` but with enhanced storytelling guidance.
+    static func premiumTextOnlyJSONPrompt(concept: String, pageCount: Int) -> String {
+        """
+        Create a \(pageCount)-page children's storybook from this concept: "\(concept)".
+        Focus ONLY on the story text — do NOT write image prompts.
+        Return JSON with this exact shape:
+        {
+          "title": "string",
+          "authorLine": "Always 'Written by StoryFox' unless user specifies an author",
+          "moral": "string",
+          "characterDescriptions": "One line per character: name - species or breed, 2-3 physical traits (color, size, distinguishing marks), personality hint, one signature visual detail (e.g. a chipped ear, a sparkly bow, mismatched socks).",
+          "pages": [
+            {
+              "pageNumber": 1,
+              "text": "2-3 short sentences — easy for a young child to follow"
+            }
+          ]
+        }
+        Requirements:
+        - Exactly \(pageCount) pages, numbered 1...\(pageCount).
+        - characterDescriptions: One line per character — name, species, 2-3 physical traits, personality hint, and a signature visual detail. Use the species from the concept — do not substitute a different animal.
+        - IMPORTANT: Each page must have only 2-3 SHORT sentences. This is a children's book for ages 3-8 — keep text brief and easy to read aloud in under 15 seconds.
+        - Build a complete narrative arc: a compelling hook, rising tension, a meaningful climax, and a satisfying resolution.
+        - Create an emotional arc — let characters feel wonder, doubt, courage, and joy.
+        - Show emotion through action: trembling paws, wide eyes, a tentative step — not exposition.
+        - Include at least one moment of gentle humor or surprise.
+        - Keep language warm, gentle, and musical — favor short punchy sentences over long flowing ones.
+        """
+    }
+
+    /// Pass 1 (Premium Plus with photos): Generate story text featuring named characters.
+    /// Inherits premium narrative enrichments and adds character-name integration.
+    static func premiumPlusTextOnlyJSONPrompt(concept: String, pageCount: Int, characterNames: [String]) -> String {
+        let namesList = characterNames.joined(separator: ", ")
+        return """
+        Create a \(pageCount)-page children's storybook from this concept: "\(concept)".
+        The story features these characters as the protagonists: \(namesList).
+        Write vivid physical descriptions so illustrations match their real-world likeness.
+        Focus ONLY on the story text — do NOT write image prompts.
+        Return JSON with this exact shape:
+        {
+          "title": "string",
+          "authorLine": "Always 'Written by StoryFox' unless user specifies an author",
+          "moral": "string",
+          "characterDescriptions": "One line per character: name - detailed visual description including hair/fur color, eye color, build, clothing, and one signature visual detail.",
+          "pages": [
+            {
+              "pageNumber": 1,
+              "text": "2-3 short sentences featuring the named characters"
+            }
+          ]
+        }
+        Requirements:
+        - Exactly \(pageCount) pages, numbered 1...\(pageCount).
+        - characterDescriptions: One line per character — name, detailed visual description (hair/fur color, eye color, build, clothing), personality hint, and a signature visual detail.
+        - IMPORTANT: Every page must describe each character's physical appearance naturally within the prose, so illustrations accurately depict them.
+        - IMPORTANT: Each page must have only 2-3 SHORT sentences. This is a children's book for ages 3-8 — keep text brief and easy to read aloud in under 15 seconds.
+        - Build a complete narrative arc: a compelling hook, rising tension, a meaningful climax, and a satisfying resolution.
+        - Create an emotional arc — let characters feel wonder, doubt, courage, and joy.
+        - Show emotion through action: trembling paws, wide eyes, a tentative step — not exposition.
+        - Include at least one moment of gentle humor or surprise.
+        - Keep language warm, gentle, and musical — favor short punchy sentences over long flowing ones.
+        """
+    }
+
+    /// Pass 2 (Premium): Generate image prompts for a premium children's storybook.
+    /// Focused on who/what/where/expression/mood — no cinematic jargon that inflates prompt length.
+    static func premiumImagePromptJSONPrompt(
+        characterDescriptions: String,
+        pages: [(pageNumber: Int, text: String)],
+        style: IllustrationStyle = .illustration
+    ) -> String {
+        let pageList = pages.map { "Page \($0.pageNumber): \($0.text)" }.joined(separator: "\n")
+        return """
+        You are an art director writing illustration prompts for a premium children's storybook.
+
+        ART STYLE: \(premiumStyleDirective(for: style))
+
+        CHARACTER SHEET:
+        \(characterDescriptions)
+
+        COMPLETE STORY TEXT:
+        \(pageList)
+
+        Write one image prompt for each page.
+        Return JSON with this exact shape:
+        {
+          "prompts": [
+            {
+              "pageNumber": 1,
+              "imagePrompt": "Visual scene description"
+            }
+          ]
+        }
+        Generate exactly \(pages.count) prompts, one per page.
+
+        CRITICAL RULES:
+        - EVERY prompt must describe the scene in \(style.displayName.lowercased()) style.
+        - Describe every character by SPECIES and VISUAL APPEARANCE — never by name alone. \
+        Image models cannot look up character names.
+        - Always state WHAT the character is (species/type), their COLOR, and what they WEAR.
+        - Include setting, action, character expression, and mood.
+        - Keep each prompt under 200 characters — be specific and concise.
+        - Maintain visual consistency: same character colors, clothing, and features across all pages.
+        - Describe body language to convey emotion (sparkling eyes, arms thrown wide, a tentative step).
         - Do NOT include any text, words, or letters in the scene descriptions.
         """
     }

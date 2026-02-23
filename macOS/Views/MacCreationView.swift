@@ -11,7 +11,16 @@ struct MacCreationView: View {
     @State private var creationMode: CreationMode = .quick
     @State private var qaViewModel = StoryQAViewModel()
     @State private var showBookSetupPopover = false
+    @State private var premiumState: PremiumState = PremiumStore.load()
     @FocusState private var editorFocused: Bool
+
+    private var isPremiumActive: Bool {
+        premiumState.tier.isActive
+    }
+
+    private var isPremiumPlus: Bool {
+        premiumState.tier == .premiumPlus
+    }
 
     var body: some View {
         ZStack {
@@ -81,8 +90,23 @@ struct MacCreationView: View {
                             .padding(.top, StoryJuicerGlassTokens.Spacing.large)
                         }
 
+                        // Premium Plus photo upload section
+                        if isPremiumPlus {
+                            CharacterPhotosSection(characterPhotos: $viewModel.characterPhotos)
+                                .padding(.top, StoryJuicerGlassTokens.Spacing.medium)
+                                .transition(.opacity.combined(with: .scale(scale: 0.98, anchor: .top)))
+                        }
+
                         if creationMode == .quick {
-                            SqueezeButton(isEnabled: viewModel.canGenerate) {
+                            SqueezeButton(
+                                title: isPremiumActive ? "Create Story" : "Squeeze a Story",
+                                subtitle: isPremiumPlus
+                                    ? "Creating with Premium Plus models"
+                                    : isPremiumActive
+                                        ? "Creating with Premium models"
+                                        : "AI writes & illustrates your idea",
+                                isEnabled: viewModel.canGenerate
+                            ) {
                                 viewModel.squeezeStory()
                             }
                             .padding(.top, StoryJuicerGlassTokens.Spacing.large)
@@ -268,8 +292,32 @@ struct MacCreationView: View {
 
             Spacer(minLength: StoryJuicerGlassTokens.Spacing.medium)
 
+            if isPremiumActive {
+                premiumIndicatorPill
+            }
+
             bookSetupRow
                 .fixedSize()
+        }
+    }
+
+    private var premiumIndicatorPill: some View {
+        HStack(spacing: StoryJuicerGlassTokens.Spacing.xSmall) {
+            Image(systemName: isPremiumPlus ? "bolt.shield.fill" : "crown.fill")
+                .font(.system(size: 11, weight: .semibold))
+                .foregroundStyle(Color.sjGold)
+
+            Text(premiumState.tier.displayName)
+                .font(StoryJuicerTypography.uiMetaStrong)
+                .foregroundStyle(Color.sjGold)
+        }
+        .padding(.horizontal, StoryJuicerGlassTokens.Spacing.small + 2)
+        .padding(.vertical, StoryJuicerGlassTokens.Spacing.xSmall + 2)
+        .background(Color.sjGold.opacity(0.12))
+        .clipShape(.capsule)
+        .overlay {
+            Capsule()
+                .strokeBorder(Color.sjGold.opacity(0.35), lineWidth: 1)
         }
     }
 

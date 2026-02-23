@@ -1,17 +1,19 @@
 import Foundation
 import CoreGraphics
 import FoundationModels
+import os
 
 enum GenerationPhase: Sendable, Equatable {
     case idle
     case generatingText(partialText: String)
+    case generatingCharacterSheet
     case generatingImages(completedCount: Int, totalCount: Int)
     case complete
     case failed(String)
 
     var isWorking: Bool {
         switch self {
-        case .generatingText, .generatingImages: true
+        case .generatingText, .generatingCharacterSheet, .generatingImages: true
         default: false
         }
     }
@@ -25,6 +27,8 @@ enum GenerationPhase: Sendable, Equatable {
 @Observable
 @MainActor
 final class CreationViewModel {
+    private static let logger = Logger(subsystem: "com.storyfox.app", category: "CreationVM")
+
     // MARK: - User Inputs
     var storyConcept: String = ""
     var pageCount: Int = GenerationConfig.defaultPages
@@ -62,6 +66,12 @@ final class CreationViewModel {
     /// Set during `squeezeStory()`, passed to `BookReaderViewModel` for regeneration.
     private(set) var parsedCharacters: [ImagePromptEnricher.CharacterEntry] = []
 
+    // MARK: - Premium
+    /// Character photos uploaded by the user for reference-based generation.
+    var characterPhotos: [CharacterPhotoReference] = []
+    /// Generated character reference sheet for premium pipeline visual consistency.
+    private(set) var characterSheetImage: CGImage?
+
     // MARK: - Generators
     let storyGenerator = StoryGenerator()
     let remoteStoryGenerator = RemoteStoryGenerator()
@@ -96,6 +106,8 @@ final class CreationViewModel {
             return CloudCredentialStore.isAuthenticated(for: .togetherAI)
         case .huggingFace:
             return CloudCredentialStore.isAuthenticated(for: .huggingFace)
+        case .openAI:
+            return true  // Uses server-side proxy, no client API key needed
         }
     }
 
@@ -118,6 +130,8 @@ final class CreationViewModel {
         case .huggingFace:
             return CloudCredentialStore.isAuthenticated(for: .huggingFace)
                 ? nil : "Hugging Face not authenticated. Log in via Settings."
+        case .openAI:
+            return nil  // Uses server-side proxy, no client API key needed
         }
     }
 
@@ -144,17 +158,41 @@ final class CreationViewModel {
             return
         }
 
-        let settings = ModelSelectionStore.load()
+        var settings = ModelSelectionStore.load()
+        let premium = PremiumStore.load()
+        if premium.tier.isActive {
+            settings.textProvider = .openAI
+            settings.imageProvider = .openAI
+        }
         let useCloudTextPath = settings.textProvider.isCloud
 
         generationTask = Task {
+            // Start verbose logging session (no-op when disabled)
+            let verboseID = await VerboseGenerationLogger.shared.startSession(
+                concept: safeConcept,
+                pageCount: pageCount,
+                format: selectedFormat.displayName,
+                style: selectedStyle.displayName,
+                textProvider: settings.textProvider.displayName,
+                imageProvider: settings.imageProvider.displayName,
+                textModel: settings.resolvedTextModelLabel,
+                imageModel: settings.resolvedImageModelLabel,
+                premiumTier: premium.tier.displayName
+            )
+            if let sid = verboseID {
+                await VerboseGenerationLogger.shared.setActiveSession(sid)
+            }
+            let sessionClock = ContinuousClock()
+            let sessionStart = sessionClock.now
+
             do {
                 // Phase 1: Generate text
                 phase = .generatingText(partialText: "")
 
                 let rawBook = try await generateStoryWithRouting(
                     concept: safeConcept,
-                    pageCount: pageCount
+                    pageCount: pageCount,
+                    settingsOverride: settings
                 )
 
                 let book: StoryBook
@@ -208,7 +246,59 @@ final class CreationViewModel {
 
                 storyBook = book
 
-                // Phase 2: Generate illustrations
+                // Phase 2: Generate character sheet (Premium Plus only)
+                // Creates a style-matched reference image of the main character
+                // that anchors visual consistency across all page illustrations.
+                var characterSheet: CGImage? = nil
+                if premium.tier.usesCharacterSheet {
+                    phase = .generatingCharacterSheet
+
+                    do {
+                        // Extract main character description (first entry)
+                        let mainCharacter: String
+                        if !parsedCharacters.isEmpty {
+                            let first = parsedCharacters[0]
+                            mainCharacter = "\(first.name) - \(first.injectionPhrase)"
+                        } else {
+                            // Fallback: use the raw characterDescriptions first line
+                            mainCharacter = book.characterDescriptions
+                                .components(separatedBy: .newlines)
+                                .first(where: { !$0.trimmingCharacters(in: .whitespaces).isEmpty })
+                                ?? book.characterDescriptions
+                        }
+
+                        let sheetPrompt = StoryPromptTemplates.characterSheetPrompt(
+                            characterDescription: mainCharacter,
+                            style: selectedStyle
+                        )
+
+                        // Determine reference photo (first uploaded photo, if any)
+                        let referencePhoto = characterPhotos.first?.photoData
+
+                        let sheetGenerator = CloudImageGenerator(cloudProvider: .openAI)
+                        characterSheet = try await sheetGenerator.generateCharacterSheet(
+                            prompt: sheetPrompt,
+                            referencePhoto: referencePhoto,
+                            style: selectedStyle,
+                            format: selectedFormat,
+                            settings: settings
+                        )
+                        self.characterSheetImage = characterSheet
+                    } catch {
+                        // Character sheet failure is non-fatal — continue without it
+                        Self.logger.warning("Character sheet generation failed: \(String(describing: error), privacy: .public)")
+                        self.characterSheetImage = nil
+                    }
+                }
+
+                // Phase 3: Generate illustrations
+                if let sid = verboseID {
+                    await VerboseGenerationLogger.shared.logSection(
+                        sessionID: sid,
+                        heading: "Image Generation",
+                        content: "Generating \(book.pages.count + 1) images (cover + \(book.pages.count) pages)..."
+                    )
+                }
                 let totalImages = book.pages.count + 1
                 phase = .generatingImages(completedCount: 0, totalCount: totalImages)
                 generatedImages = [:]
@@ -218,10 +308,21 @@ final class CreationViewModel {
                     concept: safeConcept
                 )
 
+                // Propagate premium tier to the illustration generator for tier-aware routing
+                illustrationGenerator.setPremiumTier(premium.tier)
+
+                // Pass character photos only when Premium Plus is active
+                if premium.tier.supportsPhotoUpload {
+                    illustrationGenerator.setCharacterPhotos(characterPhotos)
+                } else {
+                    illustrationGenerator.setCharacterPhotos([])
+                }
+
                 try await illustrationGenerator.generateIllustrations(
                     for: book.pages,
                     coverPrompt: coverPrompt,
                     characterDescriptions: book.characterDescriptions,
+                    characterSheetImage: characterSheet,
                     style: selectedStyle,
                     format: selectedFormat,
                     analyses: analyses,
@@ -236,9 +337,23 @@ final class CreationViewModel {
                 generatedImages = illustrationGenerator.generatedImages
                 phase = .complete
 
+                // End verbose logging session
+                if let sid = verboseID {
+                    let elapsed = sessionStart.duration(to: sessionClock.now)
+                    let seconds = Double(elapsed.components.seconds) + Double(elapsed.components.attoseconds) / 1e18
+                    await VerboseGenerationLogger.shared.endSession(
+                        sid,
+                        totalDuration: seconds,
+                        imageStats: (total: totalImages, succeeded: generatedImages.count)
+                    )
+                    await VerboseGenerationLogger.shared.setActiveSession(nil)
+                }
+
             } catch is CancellationError {
+                await VerboseGenerationLogger.shared.setActiveSession(nil)
                 phase = .idle
             } catch let error as LanguageModelSession.GenerationError {
+                await VerboseGenerationLogger.shared.setActiveSession(nil)
                 if case .guardrailViolation = error {
                     phase = .failed(
                         "Apple's safety filter blocked this request. "
@@ -248,6 +363,7 @@ final class CreationViewModel {
                     phase = .failed(error.localizedDescription)
                 }
             } catch {
+                await VerboseGenerationLogger.shared.setActiveSession(nil)
                 phase = .failed(error.localizedDescription)
             }
         }
@@ -478,6 +594,7 @@ final class CreationViewModel {
         storyBook = nil
         generatedImages = [:]
         parsedCharacters = []
+        characterSheetImage = nil
         authorTitle = ""
         authorCharacterDescriptions = ""
         authorPages = ["", "", "", ""]
@@ -495,9 +612,10 @@ final class CreationViewModel {
 
     private func generateStoryWithRouting(
         concept: String,
-        pageCount: Int
+        pageCount: Int,
+        settingsOverride: ModelSelectionSettings? = nil
     ) async throws -> StoryBook {
-        let settings = ModelSelectionStore.load()
+        let settings = settingsOverride ?? ModelSelectionStore.load()
         switch settings.textProvider {
         case .appleFoundation:
             return try await generateFoundationRoutedStory(
@@ -506,7 +624,7 @@ final class CreationViewModel {
             )
 
         case .mlxSwift:
-            phase = .generatingText(partialText: "Using MLX model for story drafting...")
+            phase = .generatingText(partialText: "The fox is opening its storybook...")
             do {
                 return try await mlxStoryGenerator.generateStory(
                     concept: concept,
@@ -518,7 +636,7 @@ final class CreationViewModel {
                 )
             } catch {
                 if settings.enableFoundationFallback {
-                    phase = .generatingText(partialText: "MLX model unavailable, switching to Apple Foundation path...")
+                    phase = .generatingText(partialText: "Trying a different quill...")
                     return try await generateFoundationRoutedStory(
                         concept: concept,
                         pageCount: pageCount
@@ -528,7 +646,7 @@ final class CreationViewModel {
                 }
             }
 
-        case .openRouter, .togetherAI, .huggingFace:
+        case .openRouter, .togetherAI, .huggingFace, .openAI:
             return try await generateCloudStory(
                 concept: concept,
                 pageCount: pageCount,
@@ -544,8 +662,14 @@ final class CreationViewModel {
         provider: CloudProvider,
         enableFallback: Bool
     ) async throws -> StoryBook {
-        let generator = CloudTextGenerator(cloudProvider: provider)
-        phase = .generatingText(partialText: "Using \(provider.displayName) for story drafting...")
+        var generator = CloudTextGenerator(cloudProvider: provider)
+        let premium = PremiumStore.load()
+        generator.premiumTier = premium.tier
+        generator.illustrationStyle = selectedStyle
+        if premium.tier.supportsPhotoUpload {
+            generator.characterNames = characterPhotos.map(\.name)
+        }
+        phase = .generatingText(partialText: "The fox is opening its storybook...")
         return try await generator.generateStory(
             concept: concept,
             pageCount: pageCount,
@@ -561,7 +685,7 @@ final class CreationViewModel {
         pageCount: Int
     ) async throws -> StoryBook {
         if remoteStoryGenerator.isConfigured {
-            phase = .generatingText(partialText: "Using larger model for story drafting...")
+            phase = .generatingText(partialText: "The fox is opening its storybook...")
             do {
                 return try await remoteStoryGenerator.generateStory(
                     concept: concept,

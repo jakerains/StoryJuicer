@@ -2,7 +2,7 @@ import { NextResponse } from "next/server";
 import { getPremiumConfig } from "@/lib/premium-config";
 import { hasDevBypass } from "@/lib/dev-bypass";
 
-export const maxDuration = 60;
+export const maxDuration = 300;
 
 export async function POST(request: Request) {
   try {
@@ -24,11 +24,53 @@ export async function POST(request: Request) {
     }
 
     const body = await request.json();
-    const { messages, max_tokens } = body;
+
+    // ── Native Responses API path ──
+    // New clients send `input` array directly — pass through with model override.
+    if (body.input) {
+      const isPlus = body.tier === "plus";
+      const model = isPlus ? config.textModelPlus : config.textModel;
+
+      const responsesBody: Record<string, unknown> = {
+        model,
+        input: body.input,
+        max_output_tokens: body.max_output_tokens ?? 16384,
+        store: false,
+      };
+
+      if (body.instructions) {
+        responsesBody.instructions = body.instructions;
+      }
+
+      const resp = await fetch("https://api.openai.com/v1/responses", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${apiKey}`,
+        },
+        body: JSON.stringify(responsesBody),
+      });
+
+      if (!resp.ok) {
+        const errText = await resp.text();
+        console.error(`OpenAI text error (${resp.status}):`, errText.slice(0, 500));
+        return NextResponse.json(
+          { error: `OpenAI request failed (${resp.status})`, detail: errText.slice(0, 500) },
+          { status: resp.status }
+        );
+      }
+
+      const data = await resp.json();
+      return NextResponse.json(data);
+    }
+
+    // ── Legacy Chat Completions path ──
+    // Older clients send `messages` array — translate to Responses API and back.
+    const { messages, max_tokens, tier } = body;
 
     if (!messages || !Array.isArray(messages)) {
       return NextResponse.json(
-        { error: "messages array is required." },
+        { error: "messages array or input array is required." },
         { status: 400 }
       );
     }
@@ -48,8 +90,11 @@ export async function POST(request: Request) {
         content: m.content,
       }));
 
+    const isPlus = tier === "plus";
+    const model = isPlus ? config.textModelPlus : config.textModel;
+
     const responsesBody: Record<string, unknown> = {
-      model: config.textModel,
+      model,
       input,
     };
 

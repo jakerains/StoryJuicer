@@ -26,7 +26,7 @@ struct DiffusersImageGenerator: StoryImageGenerating {
             : settings.diffusersModelID
         let hfToken = HFTokenStore.loadToken(alias: settings.resolvedHFTokenAlias)
 
-        onStatus("Preparing local Diffusers runtime...")
+        onStatus("Mixing the paints...")
         try await runtimeManager.ensureRuntimeInstalled(alias: runtimeAlias, onStatus: onStatus)
 
         let layout = try await runtimeManager.runtimeLayout(alias: runtimeAlias)
