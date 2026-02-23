@@ -60,9 +60,10 @@ export async function POST(request: Request) {
       responsesBody.instructions = instructions;
     }
 
-    if (max_tokens) {
-      responsesBody.max_output_tokens = max_tokens;
-    }
+    // Use a generous output limit — the client sends a budget sized for simple
+    // completion models, but reasoning models burn tokens on thinking before
+    // producing visible output. The proxy controls the model, so override here.
+    responsesBody.max_output_tokens = 16384;
 
     // Don't store debug/generation requests server-side
     responsesBody.store = false;
