@@ -24,7 +24,7 @@ export async function POST(request: Request) {
     }
 
     const body = await request.json();
-    const { messages, temperature, max_tokens } = body;
+    const { messages, max_tokens } = body;
 
     if (!messages || !Array.isArray(messages)) {
       return NextResponse.json(
@@ -53,11 +53,8 @@ export async function POST(request: Request) {
       input,
     };
 
-    // Only include temperature when explicitly provided — some models
-    // (reasoning, o-series) reject it as an unsupported parameter.
-    if (temperature !== undefined && temperature !== null) {
-      responsesBody.temperature = temperature;
-    }
+    // Note: temperature is intentionally omitted — the server-controlled
+    // model may not support it (e.g. reasoning models reject it outright).
 
     if (instructions) {
       responsesBody.instructions = instructions;
