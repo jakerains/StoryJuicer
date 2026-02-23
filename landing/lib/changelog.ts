@@ -12,6 +12,43 @@ export interface ChangelogEntry {
 
 export const changelog: ChangelogEntry[] = [
   {
+    version: "1.9.0",
+    date: "2026-02-22",
+    title: "StoryFox Premium — OpenAI Models & Character Photos",
+    changes: [
+      {
+        type: "added",
+        description:
+          "StoryFox Premium tier — unlock OpenAI's best-in-class models for dramatically better story text and illustrations",
+      },
+      {
+        type: "added",
+        description:
+          "Character photo upload — add up to 3 photos of people or pets and they appear as characters in your story using OpenAI's image edit API",
+      },
+      {
+        type: "added",
+        description:
+          "OpenAI cloud provider with gpt-4.1 for text generation and gpt-image-1.5 for illustrations, configurable in the new Premium settings tab",
+      },
+      {
+        type: "added",
+        description:
+          "Premium settings tab with activation code, OpenAI API key management, model configuration, and connection testing",
+      },
+      {
+        type: "added",
+        description:
+          "Premium indicator pill on the creation screen shows when you're generating with OpenAI models",
+      },
+      {
+        type: "changed",
+        description:
+          "Story prompts now include character-aware instructions when photos are uploaded, producing vivid visual descriptions that match your reference images",
+      },
+    ],
+  },
+  {
     version: "1.8.0",
     date: "2026-02-21",
     title: "Prompt Suggestions & Smarter Cloud Generation",
