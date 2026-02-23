@@ -51,8 +51,13 @@ export async function POST(request: Request) {
     const responsesBody: Record<string, unknown> = {
       model: config.textModel,
       input,
-      temperature: temperature ?? 0.7,
     };
+
+    // Only include temperature when explicitly provided — some models
+    // (reasoning, o-series) reject it as an unsupported parameter.
+    if (temperature !== undefined && temperature !== null) {
+      responsesBody.temperature = temperature;
+    }
 
     if (instructions) {
       responsesBody.instructions = instructions;

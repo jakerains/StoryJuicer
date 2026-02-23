@@ -151,6 +151,41 @@ private struct DevBypassSecretField: View {
     }
 }
 
+// MARK: - Test Result Display
+
+/// Shows test result text with a "Copy" button when the result is an error.
+private struct TestResultView: View {
+    let result: String
+    let successPrefix: String
+    @State private var copied = false
+
+    private var isSuccess: Bool { result.hasPrefix(successPrefix) }
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 4) {
+            Text(result)
+                .font(StoryJuicerTypography.settingsMeta)
+                .foregroundStyle(isSuccess ? Color.sjSecondaryText : Color.sjCoral)
+                .lineLimit(6)
+                .textSelection(.enabled)
+
+            if !isSuccess {
+                Button {
+                    NSPasteboard.general.clearContents()
+                    NSPasteboard.general.setString(result, forType: .string)
+                    copied = true
+                    DispatchQueue.main.asyncAfter(deadline: .now() + 2) { copied = false }
+                } label: {
+                    Label(copied ? "Copied" : "Copy Error", systemImage: copied ? "checkmark" : "doc.on.doc")
+                        .font(.system(size: 11, weight: .medium))
+                }
+                .buttonStyle(.glass)
+                .controlSize(.small)
+            }
+        }
+    }
+}
+
 // MARK: - Premium Text Test
 
 private struct PremiumTextTestRow: View {
@@ -177,11 +212,7 @@ private struct PremiumTextTestRow: View {
             }
 
             if !result.isEmpty {
-                Text(result)
-                    .font(StoryJuicerTypography.settingsMeta)
-                    .foregroundStyle(result.hasPrefix("Text OK") ? Color.sjSecondaryText : Color.sjCoral)
-                    .lineLimit(6)
-                    .textSelection(.enabled)
+                TestResultView(result: result, successPrefix: "Text OK")
             }
         }
     }
@@ -244,11 +275,7 @@ private struct PremiumImageTestRow: View {
             }
 
             if !result.isEmpty {
-                Text(result)
-                    .font(StoryJuicerTypography.settingsMeta)
-                    .foregroundStyle(result.hasPrefix("Image OK") ? Color.sjSecondaryText : Color.sjCoral)
-                    .lineLimit(6)
-                    .textSelection(.enabled)
+                TestResultView(result: result, successPrefix: "Image OK")
             }
         }
     }
@@ -302,11 +329,16 @@ private struct PremiumConfigRow: View {
             .disabled(isFetching)
 
             if !configText.isEmpty {
-                Text(configText)
-                    .font(StoryJuicerTypography.settingsMeta.monospaced())
-                    .foregroundStyle(configText.hasPrefix("Error") ? Color.sjCoral : Color.sjSecondaryText)
-                    .lineLimit(10)
-                    .textSelection(.enabled)
+                // Config display: errors get copy button, success shows monospaced text
+                if configText.hasPrefix("Error") {
+                    TestResultView(result: configText, successPrefix: "___never_match___")
+                } else {
+                    Text(configText)
+                        .font(StoryJuicerTypography.settingsMeta.monospaced())
+                        .foregroundStyle(Color.sjSecondaryText)
+                        .lineLimit(10)
+                        .textSelection(.enabled)
+                }
             }
         }
     }
@@ -370,10 +402,7 @@ private struct CloudProviderTestGroup: View {
                 .disabled(isTesting)
 
                 if !testResult.isEmpty {
-                    Text(testResult)
-                        .font(StoryJuicerTypography.settingsMeta)
-                        .foregroundStyle(testResult.hasPrefix("Connected") ? Color.sjSecondaryText : Color.sjCoral)
-                        .lineLimit(2)
+                    TestResultView(result: testResult, successPrefix: "Connected")
                 }
             }
 
@@ -395,10 +424,7 @@ private struct CloudProviderTestGroup: View {
                 .disabled(isTestingText)
 
                 if !textTestResult.isEmpty {
-                    Text(textTestResult)
-                        .font(StoryJuicerTypography.settingsMeta)
-                        .foregroundStyle(textTestResult.hasPrefix("Text OK") ? Color.sjSecondaryText : Color.sjCoral)
-                        .lineLimit(4)
+                    TestResultView(result: textTestResult, successPrefix: "Text OK")
                 }
             }
 
@@ -420,14 +446,10 @@ private struct CloudProviderTestGroup: View {
                 .disabled(isTestingImage)
 
                 if !imageTestResult.isEmpty {
-                    Text(imageTestResult)
-                        .font(StoryJuicerTypography.settingsMeta)
-                        .foregroundStyle(imageTestResult.hasPrefix("Image OK") ? Color.sjSecondaryText : Color.sjCoral)
-                        .lineLimit(4)
+                    TestResultView(result: imageTestResult, successPrefix: "Image OK")
                 }
             }
         }
-        .textSelection(.enabled)
     }
 
     // MARK: - Test Connection
