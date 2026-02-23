@@ -10,6 +10,9 @@ struct MacSettingsView: View {
     @State private var curatedTextModelChoice: String
     @State private var customTextModelID: String
     @State private var cloudModelCache = CloudModelListCache()
+    @State private var premiumState: PremiumState
+    @AppStorage("showDebugTab") private var showDebugTabLocal: Bool = false
+    @State private var showDebugTabRemote: Bool = false
 
     init(updateManager: SoftwareUpdateManager) {
         self.updateManager = updateManager
@@ -22,6 +25,7 @@ struct MacSettingsView: View {
             initialValue: textModelIDs.contains(loaded.mlxModelID) ? loaded.mlxModelID : Self.customChoice
         )
         _customTextModelID = State(initialValue: loaded.mlxModelID)
+        _premiumState = State(initialValue: PremiumStore.load())
     }
 
     var body: some View {
@@ -40,9 +44,22 @@ struct MacSettingsView: View {
             settings.mlxModelID = newChoice
             customTextModelID = newChoice
         }
+        .onChange(of: selectedTab) { _, _ in
+            premiumState = PremiumStore.load()
+        }
         .task {
             await cloudModelCache.refreshAllAuthenticated()
+            await checkDebugEnabled()
         }
+    }
+
+    /// Tabs visible in the sidebar. Debug tab shows if either the server flag or local override is enabled.
+    private var visibleTabs: [SettingsTab] {
+        var tabs = SettingsTab.defaultTabs
+        if showDebugTabLocal || showDebugTabRemote {
+            tabs.append(.debug)
+        }
+        return tabs
     }
 
     // MARK: - Sidebar
@@ -56,7 +73,7 @@ struct MacSettingsView: View {
                 .padding(.top, StoryJuicerGlassTokens.Spacing.large)
                 .padding(.bottom, StoryJuicerGlassTokens.Spacing.small)
 
-            ForEach(SettingsTab.allCases) { tab in
+            ForEach(visibleTabs) { tab in
                 Button {
                     withAnimation(StoryJuicerMotion.fast) {
                         selectedTab = tab
@@ -87,23 +104,35 @@ struct MacSettingsView: View {
 
                 switch selectedTab {
                 case .general:
-                    GeneralSettingsTab(settings: $settings)
+                    premiumGatedContent {
+                        GeneralSettingsTab(settings: $settings)
+                    }
 
                 case .onDevice:
-                    OnDeviceSettingsTab(
-                        settings: $settings,
-                        curatedTextModelChoice: $curatedTextModelChoice,
-                        customTextModelID: $customTextModelID
-                    )
+                    premiumGatedContent {
+                        OnDeviceSettingsTab(
+                            settings: $settings,
+                            curatedTextModelChoice: $curatedTextModelChoice,
+                            customTextModelID: $customTextModelID
+                        )
+                    }
 
                 case .cloud:
-                    CloudSettingsTab(
-                        settings: $settings,
-                        modelCache: cloudModelCache
-                    )
+                    premiumGatedContent {
+                        CloudSettingsTab(
+                            settings: $settings,
+                            modelCache: cloudModelCache
+                        )
+                    }
+
+                case .premium:
+                    PremiumSettingsTab(settings: $settings)
 
                 case .about:
                     AboutSettingsTab(updateManager: updateManager)
+
+                case .debug:
+                    DebugSettingsTab(settings: $settings, modelCache: cloudModelCache)
                 }
             }
             .padding(StoryJuicerGlassTokens.Spacing.large)
@@ -127,6 +156,111 @@ struct MacSettingsView: View {
             Text(selectedTab.label)
                 .font(StoryJuicerTypography.settingsSectionTitle)
                 .foregroundStyle(Color.sjGlassInk)
+        }
+    }
+
+    // MARK: - Premium Gate
+
+    @ViewBuilder
+    private func premiumGatedContent<Content: View>(@ViewBuilder content: () -> Content) -> some View {
+        if premiumState.tier.isActive {
+            premiumActiveBanner
+            content()
+                .disabled(true)
+                .opacity(0.35)
+        } else {
+            content()
+        }
+    }
+
+    private var premiumActiveBanner: some View {
+        HStack(spacing: StoryJuicerGlassTokens.Spacing.medium) {
+            Image(systemName: "crown.fill")
+                .font(.system(size: 20))
+                .foregroundStyle(
+                    LinearGradient(
+                        colors: [Color.sjGold, Color.sjCoral],
+                        startPoint: .topLeading,
+                        endPoint: .bottomTrailing
+                    )
+                )
+                .frame(width: 36, height: 36)
+                .background(
+                    LinearGradient(
+                        colors: [Color.sjGold.opacity(0.15), Color.sjCoral.opacity(0.1)],
+                        startPoint: .topLeading,
+                        endPoint: .bottomTrailing
+                    ),
+                    in: .rect(cornerRadius: 10)
+                )
+
+            VStack(alignment: .leading, spacing: 3) {
+                Text("\(premiumState.tier.displayName) Active")
+                    .font(StoryJuicerTypography.settingsBody.weight(.semibold))
+                    .foregroundStyle(
+                        LinearGradient(
+                            colors: [Color.sjCoral, Color.sjGold],
+                            startPoint: .leading,
+                            endPoint: .trailing
+                        )
+                    )
+
+                Text("Premium handles all story and image generation. These settings are not used while Premium is enabled.")
+                    .font(StoryJuicerTypography.settingsMeta)
+                    .foregroundStyle(Color.sjSecondaryText)
+                    .fixedSize(horizontal: false, vertical: true)
+            }
+
+            Spacer()
+
+            Button {
+                withAnimation(StoryJuicerMotion.fast) {
+                    selectedTab = .premium
+                }
+            } label: {
+                Text("Manage")
+                    .font(.system(size: 12, weight: .semibold, design: .rounded))
+            }
+            .buttonStyle(.glass)
+        }
+        .padding(StoryJuicerGlassTokens.Spacing.medium)
+        .background(
+            LinearGradient(
+                colors: [Color.sjGold.opacity(0.06), Color.sjCoral.opacity(0.06)],
+                startPoint: .topLeading,
+                endPoint: .bottomTrailing
+            ),
+            in: .rect(cornerRadius: StoryJuicerGlassTokens.Radius.hero)
+        )
+        .overlay {
+            RoundedRectangle(cornerRadius: StoryJuicerGlassTokens.Radius.hero)
+                .strokeBorder(
+                    LinearGradient(
+                        colors: [Color.sjGold.opacity(0.3), Color.sjCoral.opacity(0.25)],
+                        startPoint: .topLeading,
+                        endPoint: .bottomTrailing
+                    ),
+                    lineWidth: 1
+                )
+        }
+    }
+
+    // MARK: - Debug Config Check
+
+    private func checkDebugEnabled() async {
+        guard let url = URL(string: "https://storyfox.app/api/debug/config") else { return }
+        do {
+            var request = URLRequest(url: url)
+            for (key, value) in CloudProvider.openAI.extraHeaders {
+                request.setValue(value, forHTTPHeaderField: key)
+            }
+            let (data, _) = try await URLSession.shared.data(for: request)
+            if let json = try JSONSerialization.jsonObject(with: data) as? [String: Any],
+               let enabled = json["enabled"] as? Bool {
+                await MainActor.run { showDebugTabRemote = enabled }
+            }
+        } catch {
+            // Silently fail — debug tab stays hidden if unreachable
         }
     }
 

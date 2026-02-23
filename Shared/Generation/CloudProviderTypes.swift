@@ -4,6 +4,7 @@ enum CloudProvider: String, CaseIterable, Codable, Sendable, Equatable, Identifi
     case openRouter
     case togetherAI
     case huggingFace
+    case openAI
 
     var id: String { rawValue }
 
@@ -12,6 +13,7 @@ enum CloudProvider: String, CaseIterable, Codable, Sendable, Equatable, Identifi
         case .openRouter:  return "OpenRouter"
         case .togetherAI:  return "Together AI"
         case .huggingFace: return "Hugging Face"
+        case .openAI:      return "OpenAI"
         }
     }
 
@@ -20,11 +22,17 @@ enum CloudProvider: String, CaseIterable, Codable, Sendable, Equatable, Identifi
         case .openRouter:  return URL(string: "https://openrouter.ai/api/v1")!
         case .togetherAI:  return URL(string: "https://api.together.xyz/v1")!
         case .huggingFace: return URL(string: "https://router.huggingface.co/v1")!
+        case .openAI:      return URL(string: "https://storyfox.app/api/premium")!
         }
     }
 
     var chatCompletionURL: URL {
-        baseURL.appendingPathComponent("chat/completions")
+        switch self {
+        case .openAI:
+            return URL(string: "https://storyfox.app/api/premium/text")!
+        default:
+            return baseURL.appendingPathComponent("chat/completions")
+        }
     }
 
     var imageGenerationURL: URL {
@@ -35,6 +43,8 @@ enum CloudProvider: String, CaseIterable, Codable, Sendable, Equatable, Identifi
             return URL(string: "https://api.together.xyz/v1/images/generations")!
         case .huggingFace:
             return URL(string: "https://router.huggingface.co/v1/images/generations")!
+        case .openAI:
+            return URL(string: "https://storyfox.app/api/premium/images")!
         }
     }
 
@@ -47,10 +57,13 @@ enum CloudProvider: String, CaseIterable, Codable, Sendable, Equatable, Identifi
         case .huggingFace:
             // HuggingFace uses inference API model list
             return URL(string: "https://huggingface.co/api/models")!
+        case .openAI:
+            return URL(string: "https://storyfox.app/api/premium/config")!
         }
     }
 
     /// Extra HTTP headers required by this provider (e.g. OpenRouter's referer).
+    /// For `.openAI`, includes the dev bypass secret if configured.
     var extraHeaders: [String: String] {
         switch self {
         case .openRouter:
@@ -58,8 +71,20 @@ enum CloudProvider: String, CaseIterable, Codable, Sendable, Equatable, Identifi
                 "HTTP-Referer": "https://storyfox.app",
                 "X-Title": "StoryFox"
             ]
+        case .openAI:
+            let secret = UserDefaults.standard.string(forKey: "devBypassSecret") ?? ""
+            if secret.isEmpty { return [:] }
+            return ["X-Dev-Bypass": secret]
         case .togetherAI, .huggingFace:
             return [:]
+        }
+    }
+
+    /// Whether this provider routes through the Vercel proxy (no client-side API key needed).
+    var usesProxy: Bool {
+        switch self {
+        case .openAI: return true
+        case .openRouter, .togetherAI, .huggingFace: return false
         }
     }
 
@@ -67,7 +92,7 @@ enum CloudProvider: String, CaseIterable, Codable, Sendable, Equatable, Identifi
     var supportsOAuth: Bool {
         switch self {
         case .huggingFace: return true
-        case .openRouter, .togetherAI: return false
+        case .openRouter, .togetherAI, .openAI: return false
         }
     }
 
@@ -77,6 +102,7 @@ enum CloudProvider: String, CaseIterable, Codable, Sendable, Equatable, Identifi
         case .openRouter:  return URL(string: "https://openrouter.ai/keys")
         case .togetherAI:  return URL(string: "https://api.together.ai/settings/api-keys")
         case .huggingFace: return URL(string: "https://huggingface.co/settings/tokens")
+        case .openAI:      return URL(string: "https://platform.openai.com/api-keys")
         }
     }
 
@@ -90,6 +116,7 @@ enum CloudProvider: String, CaseIterable, Codable, Sendable, Equatable, Identifi
         case .openRouter:  return "google/gemini-3-flash-preview"
         case .togetherAI:  return "meta-llama/Llama-4-Maverick-17B-128E-Instruct-Turbo"
         case .huggingFace: return "openai/gpt-oss-120b"
+        case .openAI:      return "gpt-5-mini"
         }
     }
 
@@ -98,6 +125,7 @@ enum CloudProvider: String, CaseIterable, Codable, Sendable, Equatable, Identifi
         case .openRouter:  return "google/gemini-3-pro-image-preview"
         case .togetherAI:  return "black-forest-labs/FLUX.1.1-pro"
         case .huggingFace: return "black-forest-labs/FLUX.1-schnell"
+        case .openAI:      return "gpt-image-1-mini"
         }
     }
 }
