@@ -32,21 +32,45 @@ export async function POST(request: Request) {
       );
     }
 
-    // Forward to OpenAI with server-controlled model
-    const openaiBody = {
+    // Translate Chat Completions format → Responses API format.
+    // The Swift client sends standard chat messages; we convert here so the
+    // client stays generic across all providers.
+    const instructions = messages
+      .filter((m: { role: string }) => m.role === "system")
+      .map((m: { content: string }) => m.content)
+      .join("\n\n");
+
+    const input = messages
+      .filter((m: { role: string }) => m.role !== "system")
+      .map((m: { role: string; content: string }) => ({
+        role: m.role,
+        content: m.content,
+      }));
+
+    const responsesBody: Record<string, unknown> = {
       model: config.textModel,
-      messages,
+      input,
       temperature: temperature ?? 0.7,
-      max_completion_tokens: max_tokens ?? 4096,
     };
 
-    const resp = await fetch("https://api.openai.com/v1/chat/completions", {
+    if (instructions) {
+      responsesBody.instructions = instructions;
+    }
+
+    if (max_tokens) {
+      responsesBody.max_output_tokens = max_tokens;
+    }
+
+    // Don't store debug/generation requests server-side
+    responsesBody.store = false;
+
+    const resp = await fetch("https://api.openai.com/v1/responses", {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
         Authorization: `Bearer ${apiKey}`,
       },
-      body: JSON.stringify(openaiBody),
+      body: JSON.stringify(responsesBody),
     });
 
     if (!resp.ok) {
@@ -59,7 +83,41 @@ export async function POST(request: Request) {
     }
 
     const data = await resp.json();
-    return NextResponse.json(data);
+
+    // Translate Responses API format → Chat Completions format so the Swift
+    // client's existing parser (StoryDecoding.extractTextContent) works unchanged.
+    const outputText = data.output
+      ?.filter((item: { type: string }) => item.type === "message")
+      .flatMap((item: { content: Array<{ type: string; text: string }> }) => item.content)
+      .filter((part: { type: string }) => part.type === "output_text")
+      .map((part: { text: string }) => part.text)
+      .join("") ?? "";
+
+    const chatCompletionsResponse = {
+      id: data.id,
+      object: "chat.completion",
+      created: data.created_at,
+      model: data.model,
+      choices: [
+        {
+          index: 0,
+          message: {
+            role: "assistant",
+            content: outputText,
+          },
+          finish_reason: data.status === "completed" ? "stop" : "length",
+        },
+      ],
+      usage: data.usage
+        ? {
+            prompt_tokens: data.usage.input_tokens,
+            completion_tokens: data.usage.output_tokens,
+            total_tokens: data.usage.total_tokens,
+          }
+        : undefined,
+    };
+
+    return NextResponse.json(chatCompletionsResponse);
   } catch (err) {
     console.error("Premium text proxy error:", err);
     return NextResponse.json(
