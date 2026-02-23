@@ -611,9 +611,9 @@ struct MacBookReaderView: View {
             .resizable()
             .renderingMode(.original)
             .scaledToFit()
-            .frame(width: 100, height: 100)
+            .frame(width: 300, height: 300)
             .opacity(0.7)
-            .padding(.top, StoryJuicerGlassTokens.Spacing.medium)
+            .padding(.top, StoryJuicerGlassTokens.Spacing.xLarge)
     }
 
     private var navigationOverlay: some View {
