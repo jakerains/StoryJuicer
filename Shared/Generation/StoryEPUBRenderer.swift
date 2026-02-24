@@ -32,9 +32,14 @@ struct StoryEPUBRenderer: EPUBRendering {
         // 4. Images — JPEG at 0.85 quality, stored (already compressed)
         var imageManifestEntries: [(id: String, href: String)] = []
 
-        if let cover = images[0], let jpeg = cgImageToJPEGData(cover) {
-            zip.addStored(path: "OEBPS/images/cover.jpg", data: jpeg)
-            imageManifestEntries.append((id: "img-cover", href: "images/cover.jpg"))
+        if let cover = images[0] {
+            // Flatten title + author text onto the cover image so EPUB readers
+            // show the title on the bookshelf thumbnail (they use cover-image, not the HTML page).
+            let flatCover = compositeCoverImage(cover, title: storybook.title, author: storybook.authorLine)
+            if let jpeg = cgImageToJPEGData(flatCover) {
+                zip.addStored(path: "OEBPS/images/cover.jpg", data: jpeg)
+                imageManifestEntries.append((id: "img-cover", href: "images/cover.jpg"))
+            }
         }
 
         for page in storybook.pages {
@@ -382,5 +387,114 @@ struct StoryEPUBRenderer: EPUBRendering {
             return "\(dateStr)T\(timeParts)Z"
         }
         return full
+    }
+
+    // MARK: - Cover Image Compositing
+
+    /// Draw title and author text onto the cover illustration so the EPUB cover-image
+    /// asset shows the book title on the bookshelf in iBooks / other readers.
+    ///
+    /// Layout: image fills the full canvas, title sits in the lower third over a
+    /// semi-transparent gradient scrim, author line below the title.
+    private func compositeCoverImage(_ image: CGImage, title: String, author: String) -> CGImage {
+        let w = image.width
+        let h = image.height
+        let colorSpace = CGColorSpaceCreateDeviceRGB()
+
+        guard let ctx = CGContext(
+            data: nil,
+            width: w,
+            height: h,
+            bitsPerComponent: 8,
+            bytesPerRow: 0,
+            space: colorSpace,
+            bitmapInfo: CGImageAlphaInfo.premultipliedLast.rawValue
+        ) else {
+            return image
+        }
+
+        let fullRect = CGRect(x: 0, y: 0, width: w, height: h)
+
+        // Draw the original illustration
+        ctx.draw(image, in: fullRect)
+
+        // Draw a gradient scrim over the bottom 40% for text legibility
+        let scrimHeight = CGFloat(h) * 0.4
+        let scrimRect = CGRect(x: 0, y: 0, width: CGFloat(w), height: scrimHeight)
+        let gradient = CGGradient(
+            colorsSpace: colorSpace,
+            colors: [
+                CGColor(red: 0.08, green: 0.05, blue: 0.03, alpha: 0.85),
+                CGColor(red: 0.08, green: 0.05, blue: 0.03, alpha: 0.0)
+            ] as CFArray,
+            locations: [0.0, 1.0]
+        )!
+        ctx.saveGState()
+        ctx.clip(to: scrimRect)
+        ctx.drawLinearGradient(
+            gradient,
+            start: CGPoint(x: 0, y: 0),
+            end: CGPoint(x: 0, y: scrimHeight),
+            options: []
+        )
+        ctx.restoreGState()
+
+        // Scale font size relative to image dimensions
+        let scale = CGFloat(w) / 1024.0
+        let titleFontSize = max(36 * scale, 24)
+        let authorFontSize = max(18 * scale, 14)
+        let margin = 40 * scale
+
+        // Draw title
+        let titleFont = CTFontCreateWithName("Georgia-Bold" as CFString, titleFontSize, nil)
+        let titleParagraphStyle = NSMutableParagraphStyle()
+        titleParagraphStyle.alignment = .center
+        titleParagraphStyle.lineBreakMode = .byWordWrapping
+        let titleAttr: [NSAttributedString.Key: Any] = [
+            .font: titleFont,
+            .foregroundColor: CGColor(red: 1, green: 1, blue: 1, alpha: 1),
+            .paragraphStyle: titleParagraphStyle
+        ]
+        let titleStr = NSAttributedString(string: title, attributes: titleAttr)
+        let titleFramesetter = CTFramesetterCreateWithAttributedString(titleStr)
+
+        // Measure title height
+        let titleConstraint = CGSize(width: CGFloat(w) - margin * 2, height: scrimHeight * 0.6)
+        let titleSize = CTFramesetterSuggestFrameSizeWithConstraints(
+            titleFramesetter, CFRangeMake(0, 0), nil, titleConstraint, nil
+        )
+
+        // Position title above author line, near bottom
+        let authorLineHeight = authorFontSize * 1.5
+        let titleY = margin + authorLineHeight + 8 * scale
+        let titleRect = CGRect(
+            x: margin,
+            y: titleY,
+            width: CGFloat(w) - margin * 2,
+            height: titleSize.height + titleFontSize * 0.5
+        )
+        let titlePath = CGPath(rect: titleRect, transform: nil)
+        let titleFrame = CTFramesetterCreateFrame(titleFramesetter, CFRangeMake(0, 0), titlePath, nil)
+        CTFrameDraw(titleFrame, ctx)
+
+        // Draw author line
+        let authorFont = CTFontCreateWithName("Georgia-Italic" as CFString, authorFontSize, nil)
+        let authorParagraphStyle = NSMutableParagraphStyle()
+        authorParagraphStyle.alignment = .center
+        let authorAttr: [NSAttributedString.Key: Any] = [
+            .font: authorFont,
+            .foregroundColor: CGColor(red: 1, green: 1, blue: 1, alpha: 0.75),
+            .paragraphStyle: authorParagraphStyle
+        ]
+        let authorStr = NSAttributedString(string: author, attributes: authorAttr)
+        let authorLine = CTLineCreateWithAttributedString(authorStr)
+        let authorBounds = CTLineGetBoundsWithOptions(authorLine, .useOpticalBounds)
+        ctx.textPosition = CGPoint(
+            x: (CGFloat(w) - authorBounds.width) / 2,
+            y: margin
+        )
+        CTLineDraw(authorLine, ctx)
+
+        return ctx.makeImage() ?? image
     }
 }

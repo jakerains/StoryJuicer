@@ -51,12 +51,15 @@ enum StoryPromptTemplates {
         """
         Requirements:
         - Exactly \(pageCount) pages, numbered 1...\(pageCount).
-        - characterDescriptions: One line per character — name, species, colors, clothing, one unique feature.
-        - CRITICAL for imagePrompt: Every imagePrompt MUST describe the character by species \
-        and appearance — not just their name. Image models cannot look up names.
-          BAD: A character name alone with no visual description.
-          GOOD: The character's species or breed, their color, what they wear, their action, and the setting.
-          Always state WHAT the character is (species/type), their COLOR, and what they WEAR.
+        - characterDescriptions: One line per character — name, specific species or breed, colors, clothing, one unique feature. \
+        For common animals (dogs, cats, birds), use the exact breed (e.g. "golden retriever" not "dog", "tabby cat" not "cat"). \
+        Use the species from the concept — do not substitute a different animal.
+        - CRITICAL for imagePrompt: Every single imagePrompt MUST include the character's exact species or breed \
+        and their key visual traits (color, clothing). Each image is generated independently — the model \
+        cannot see previous pages. If the character is a red squirrel, EVERY prompt must say "red squirrel". \
+        Never switch species or breed mid-story.
+          BAD: A character name alone, or vague terms like "the little animal" or "the creature".
+          GOOD: "A red squirrel wearing a blue scarf" — specific species, color, and clothing on every page.
         - Keep language warm, gentle, and easy to read aloud.
         """
     }
@@ -72,12 +75,12 @@ enum StoryPromptTemplates {
           "title": "string",
           "authorLine": "Always 'Written by StoryFox' unless user specifies an author",
           "moral": "string",
-          "characterDescriptions": "One line per character: name - species or breed, colors, clothing, unique feature. Use the species from the concept — do not substitute a different animal.",
+          "characterDescriptions": "One line per character: name - specific species or breed (e.g. 'golden retriever' not 'dog'), colors, clothing, unique feature. Use the species from the concept — do not substitute a different animal.",
           "pages": [
             {
               "pageNumber": 1,
               "text": "2-4 child-friendly sentences",
-              "imagePrompt": "Describe character by species and visual appearance (not just name), then action, setting, mood, colors. No text overlays."
+              "imagePrompt": "MUST include exact species/breed + color + clothing on EVERY page. Each image is generated independently. No text overlays."
             }
           ]
         }
@@ -97,10 +100,12 @@ enum StoryPromptTemplates {
         Generate exactly \(pageCount) pages. Number them from 1 to \(pageCount). \
         Each page should have 2-4 sentences of story text and a detailed illustration prompt. \
         For characterDescriptions, list each character on one line with their name, \
-        species, colors, clothing, and one unique feature. \
-        CRITICAL: In each imagePrompt, describe the character by their species and visual \
-        appearance — not just their name. An image model cannot look up character names. \
-        Always include the character's species or breed, color, and clothing in every imagePrompt. \
+        specific species or breed (e.g. "golden retriever" not "dog", "red squirrel" not "squirrel"), \
+        colors, clothing, and one unique feature. \
+        CRITICAL: Every single imagePrompt MUST state the character's exact species or breed \
+        and their key visual traits. Each image is generated independently — the model cannot \
+        see other pages. Repeat the species/breed and appearance on EVERY page. \
+        Never switch species mid-story. Never use vague terms like "the little animal". \
         Keep the story warm, comforting, and suitable for ages 3-8.
         """
     }
@@ -150,8 +155,9 @@ enum StoryPromptTemplates {
         Focus ONLY on the story text — do NOT write image prompts. \
         Each page should have 2-4 sentences of vivid, age-appropriate prose. \
         For characterDescriptions, list each character on one line: \
-        name - species or breed, colors, clothing, one distinguishing feature. \
-        Use the species from the concept — do not substitute a different animal. \
+        name - specific species or breed (e.g. "golden retriever" not "dog"), colors, clothing, \
+        one distinguishing feature. Use the species from the concept — do not substitute a different animal. \
+        For common animals like dogs, cats, or birds, always specify the exact breed or variety. \
         Build a complete narrative arc with a clear beginning, middle, and end. \
         Keep the story warm, comforting, and suitable for ages 3-8.
         """
@@ -183,12 +189,14 @@ enum StoryPromptTemplates {
         CRITICAL RULES:
         - EVERY prompt must describe the scene in \(style.displayName.lowercased()) style — \
         include medium-specific textures, lighting, and rendering language.
-        - Describe every character by their SPECIES and VISUAL APPEARANCE — never by name alone. \
-        Image models cannot look up character names.
-        - Always state WHAT the character is (species/type), their COLOR, and what they WEAR.
+        - EVERY prompt MUST state the character's exact species or breed and key visual traits. \
+        Each image is generated independently — the model cannot see other pages. \
+        If the character is a red squirrel, write "red squirrel" in EVERY prompt. Never switch species.
+        - For common animals (dogs, cats, birds), always use the specific breed from the character sheet.
+        - Never use vague terms like "the little animal", "the creature", or just the character's name.
+        - Always state WHAT the character is (species/breed), their COLOR, and what they WEAR.
         - Include setting, action, expressions, mood, and lighting.
         - Maintain visual consistency: same character colors, clothing, and features across all pages.
-        - Reference earlier and later scenes to ensure the illustrations tell a cohesive visual story.
         - Do NOT include any text, words, or letters in the scene descriptions.
         """
     }
@@ -206,7 +214,7 @@ enum StoryPromptTemplates {
           "title": "string",
           "authorLine": "Always 'Written by StoryFox' unless user specifies an author",
           "moral": "string",
-          "characterDescriptions": "One line per character: name - species or breed, colors, clothing, unique feature. Use the species from the concept — do not substitute a different animal.",
+          "characterDescriptions": "One line per character: name - specific species or breed (e.g. 'golden retriever' not 'dog'), colors, clothing, unique feature. Use the species from the concept — do not substitute a different animal.",
           "pages": [
             {
               "pageNumber": 1,
@@ -216,7 +224,8 @@ enum StoryPromptTemplates {
         }
         Requirements:
         - Exactly \(pageCount) pages, numbered 1...\(pageCount).
-        - characterDescriptions: One line per character — name, species, colors, clothing, one unique feature.
+        - characterDescriptions: One line per character — name, specific species or breed, colors, clothing, one unique feature. \
+        For common animals (dogs, cats, birds), use the exact breed (e.g. "golden retriever" not "dog").
         - Build a complete narrative arc with a clear beginning, middle, and end.
         - Keep language warm, gentle, and easy to read aloud.
         """
@@ -256,12 +265,14 @@ enum StoryPromptTemplates {
         CRITICAL RULES:
         - EVERY prompt must describe the scene in \(style.displayName.lowercased()) style — \
         include medium-specific textures, lighting, and rendering language.
-        - Describe every character by their SPECIES and VISUAL APPEARANCE — never by name alone. \
-        Image models cannot look up character names.
-        - Always state WHAT the character is (species/type), their COLOR, and what they WEAR.
+        - EVERY prompt MUST state the character's exact species or breed and key visual traits. \
+        Each image is generated independently — the model cannot see other pages. \
+        If the character is a red squirrel, write "red squirrel" in EVERY prompt. Never switch species.
+        - For common animals (dogs, cats, birds), always use the specific breed from the character sheet.
+        - Never use vague terms like "the little animal", "the creature", or just the character's name.
+        - Always state WHAT the character is (species/breed), their COLOR, and what they WEAR.
         - Include setting, action, expressions, mood, and lighting.
         - Maintain visual consistency: same character colors, clothing, and features across all pages.
-        - Reference earlier and later scenes to ensure the illustrations tell a cohesive visual story.
         - Do NOT include any text, words, or letters in the scene descriptions.
         """
     }
@@ -323,7 +334,7 @@ enum StoryPromptTemplates {
           "title": "string",
           "authorLine": "Always 'Written by StoryFox' unless user specifies an author",
           "moral": "string",
-          "characterDescriptions": "One line per character: name - species or breed, 2-3 physical traits (color, size, distinguishing marks), personality hint, one signature visual detail (e.g. a chipped ear, a sparkly bow, mismatched socks).",
+          "characterDescriptions": "One line per character: name - specific species or breed (e.g. 'golden retriever' not 'dog', 'red squirrel' not 'squirrel'), 2-3 physical traits (color, size, distinguishing marks), personality hint, one signature visual detail (e.g. a chipped ear, a sparkly bow, mismatched socks).",
           "pages": [
             {
               "pageNumber": 1,
@@ -333,7 +344,7 @@ enum StoryPromptTemplates {
         }
         Requirements:
         - Exactly \(pageCount) pages, numbered 1...\(pageCount).
-        - characterDescriptions: One line per character — name, species, 2-3 physical traits, personality hint, and a signature visual detail. Use the species from the concept — do not substitute a different animal.
+        - characterDescriptions: One line per character — name, specific species or breed (e.g. "golden retriever" not "dog"), 2-3 physical traits, personality hint, and a signature visual detail. Use the species from the concept — do not substitute a different animal. For common animals, always use the exact breed.
         - IMPORTANT: Each page must have only 2-3 SHORT sentences. This is a children's book for ages 3-8 — keep text brief and easy to read aloud in under 15 seconds.
         - Build a complete narrative arc: a compelling hook, rising tension, a meaningful climax, and a satisfying resolution.
         - Create an emotional arc — let characters feel wonder, doubt, courage, and joy.
@@ -411,9 +422,12 @@ enum StoryPromptTemplates {
 
         CRITICAL RULES:
         - EVERY prompt must describe the scene in \(style.displayName.lowercased()) style.
-        - Describe every character by SPECIES and VISUAL APPEARANCE — never by name alone. \
-        Image models cannot look up character names.
-        - Always state WHAT the character is (species/type), their COLOR, and what they WEAR.
+        - EVERY prompt MUST state the character's exact species or breed and key visual traits. \
+        Each image is generated independently — the model cannot see other pages. \
+        If the character is a golden retriever, write "golden retriever" in EVERY prompt. Never switch species.
+        - For common animals, always use the specific breed from the character sheet (not just "dog" or "cat").
+        - Never use vague terms like "the little animal", "the creature", or just the character's name.
+        - Always state WHAT the character is (species/breed), their COLOR, and what they WEAR.
         - Include setting, action, character expression, and mood.
         - Keep each prompt under 200 characters — be specific and concise.
         - Maintain visual consistency: same character colors, clothing, and features across all pages.

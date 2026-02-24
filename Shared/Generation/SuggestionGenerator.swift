@@ -3,12 +3,18 @@ import FoundationModels
 
 @Generable
 struct StoryConceptSuggestions {
-    @Guide(description: "Exactly 4 unique children's story concepts. Each is one short sentence about a real animal doing a relatable activity in an everyday setting — like a park, kitchen, garden, school, or neighborhood. Keep each under 90 characters. No fantasy kingdoms, no magical objects, no made-up place names.")
+    @Guide(description: """
+        Exactly 10 unique children's story concepts. Each must have a DIFFERENT main character \
+        AND a DIFFERENT activity/theme. Characters can be animals, kids, robots, toys, vehicles, \
+        imaginary creatures, talking objects, or anything a child would love. No two concepts \
+        should share the same type of character or the same plot idea. Vary the settings widely. \
+        Each is one short sentence under 90 characters. No fantasy kingdoms or made-up place names.
+        """)
     var concepts: [String]
 }
 
 enum SuggestionGenerator {
-    /// Generate 4 fresh story concept suggestions using the on-device Foundation Model.
+    /// Generate 10 fresh, diverse story concept suggestions using the on-device Foundation Model.
     /// Returns nil if the model is unavailable or generation fails.
     static func generate() async -> [String]? {
         guard SystemLanguageModel.default.availability == .available else {
@@ -19,18 +25,26 @@ enum SuggestionGenerator {
             let session = LanguageModelSession(
                 instructions: """
                 You are a children's story idea generator. \
-                Generate warm, relatable story concepts featuring animal characters \
-                in everyday settings like gardens, kitchens, schools, parks, farms, \
-                and neighborhoods. Focus on real emotions and simple adventures — \
-                making a friend, learning a skill, solving a small problem, or \
-                helping someone. Avoid fantasy worlds, magical powers, and made-up places.
+                Generate warm, imaginative story concepts for ages 3-8. \
+                Characters can be animals, children, robots, toys, talking objects, \
+                vehicles with personalities, imaginary friends, or anything fun. \
+                Mix it up — not every story needs an animal. Include concepts about \
+                kids on adventures, a little robot learning something new, a toy that \
+                comes alive, a brave fire truck, a cloud who wants to rain glitter. \
+                Focus on real emotions and simple adventures — making a friend, \
+                learning a skill, solving a small problem, overcoming a fear, or \
+                helping someone. \
+                IMPORTANT: Every concept must have a DIFFERENT type of main character \
+                and a DIFFERENT theme. Do not repeat character types or plot ideas. \
+                Vary the settings widely — parks, kitchens, outer space, the ocean, \
+                a cozy bedroom, a busy city, a quiet forest, a train ride, and more.
                 """
             )
 
-            let options = GenerationOptions(temperature: 0.9)
+            let options = GenerationOptions(temperature: 1.0)
 
             let response = try await session.respond(
-                to: "Generate 4 unique children's story concepts.",
+                to: "Generate 10 children's story concepts. Each must have a completely different kind of main character and a different theme. Mix animals, kids, robots, toys, and imaginative characters.",
                 generating: StoryConceptSuggestions.self,
                 options: options
             )
@@ -39,26 +53,79 @@ enum SuggestionGenerator {
                 .map { $0.trimmingCharacters(in: .whitespacesAndNewlines) }
                 .filter { !$0.isEmpty }
 
-            guard concepts.count >= 2 else { return nil }
-            return Array(concepts.prefix(4))
+            let deduplicated = deduplicateConcepts(concepts)
+
+            guard deduplicated.count >= 4 else { return nil }
+            return Array(deduplicated.prefix(10))
         } catch {
             return nil
         }
     }
 
+    /// Remove concepts that share the same primary character type to guarantee variety.
+    private static func deduplicateConcepts(_ concepts: [String]) -> [String] {
+        var seenCharacters: Set<String> = []
+        var result: [String] = []
+
+        for concept in concepts {
+            let lower = concept.lowercased()
+            let character = characterKeywords.first { lower.contains($0) }
+
+            if let character {
+                if seenCharacters.contains(character) { continue }
+                seenCharacters.insert(character)
+            }
+            result.append(concept)
+        }
+
+        return result
+    }
+
+    private static let characterKeywords: [String] = [
+        // Animals
+        "fox", "kitten", "cat", "puppy", "dog", "rabbit", "bunny", "duckling", "duck",
+        "otter", "bear", "owl", "squirrel", "penguin", "frog", "turtle", "mouse",
+        "hedgehog", "deer", "bird", "robin", "sparrow", "elephant", "lion", "wolf",
+        "pig", "horse", "pony", "goat", "sheep", "lamb", "cow", "chicken", "rooster",
+        "bee", "ladybug", "snail", "fish", "whale", "dolphin", "octopus", "crab",
+        "parrot", "flamingo", "peacock", "tiger", "giraffe", "zebra", "hippo",
+        "koala", "kangaroo", "sloth", "chameleon", "gecko", "lizard", "chipmunk",
+        "hamster", "raccoon", "badger", "monkey", "panda", "dragon", "unicorn",
+        "butterfly", "caterpillar", "firefly", "beaver", "moose", "llama", "alpaca",
+        "corgi", "dachshund", "poodle", "beagle", "retriever",
+        // Non-animal characters
+        "robot", "toy", "teddy", "doll", "truck", "train", "rocket", "spaceship",
+        "cloud", "star", "moon", "sun", "raindrop", "snowflake", "crayon", "paintbrush",
+        "book", "backpack", "bicycle", "kite", "balloon", "lighthouse", "teapot",
+        "boy", "girl", "child", "kid",
+    ]
+
     /// Curated fallback suggestions when Foundation Models are unavailable.
-    /// Returns 4 randomly chosen concepts from a pool of 8.
+    /// Returns 10 shuffled concepts from a diverse pool.
     static func randomFallback() -> [String] {
         let pool = [
+            // Animals
             "A curious fox who starts a little lending library in the park",
             "A shy kitten trying to make friends on the first day of school",
-            "A clumsy puppy learning to fetch at the neighborhood dog park",
-            "A little rabbit growing the biggest carrot in the garden",
             "A brave duckling swimming across the pond for the first time",
-            "An otter who teaches her younger brother how to share",
             "A baby bear helping grandma bake a birthday cake",
             "A small owl staying up past bedtime to count the stars",
+            "A hedgehog knitting a tiny scarf for a cold caterpillar",
+            // Kids
+            "A girl who discovers her shadow likes to dance on its own",
+            "A boy who builds a fort that becomes the neighborhood clubhouse",
+            "Two best friends on a rainy-day scavenger hunt through the house",
+            // Toys & objects
+            "A little red wagon that dreams of rolling to the top of the hill",
+            "A teddy bear who sneaks out at night to tidy up the playroom",
+            "A crayon who feels left out because nobody picks the color gray",
+            // Robots & vehicles
+            "A tiny robot learning to make pancakes for the first time",
+            "A fire truck who is afraid of loud sirens",
+            // Imaginative
+            "A cloud who collects lost kites and returns them to kids below",
+            "A star who falls asleep and almost misses her turn to shine",
         ]
-        return Array(pool.shuffled().prefix(4))
+        return Array(pool.shuffled().prefix(10))
     }
 }

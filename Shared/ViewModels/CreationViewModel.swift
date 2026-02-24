@@ -195,7 +195,7 @@ final class CreationViewModel {
                     settingsOverride: settings
                 )
 
-                let book: StoryBook
+                var book: StoryBook
                 let analyses: [Int: PromptAnalysis]
                 let parsedCharacters: [ImagePromptEnricher.CharacterEntry]
 
@@ -243,6 +243,9 @@ final class CreationViewModel {
                         parsedCharacters: parsedCharacters
                     )
                 }
+
+                // Species guarantee: ensure every page's prompt contains the primary character's species
+                book = ImagePromptEnricher.guaranteeSpeciesConsistency(in: book)
 
                 storyBook = book
 
@@ -457,11 +460,13 @@ final class CreationViewModel {
                     + descriptionRepairedBook.pages.map { (index: $0.pageNumber, prompt: $0.imagePrompt) }
                 let analyses = await PromptAnalysisEngine.analyzePrompts(promptsToAnalyze)
 
-                let book = ImagePromptEnricher.enrichImagePrompts(
+                var book = ImagePromptEnricher.enrichImagePrompts(
                     in: descriptionRepairedBook,
                     analyses: analyses,
                     parsedCharacters: parsedCharacters
                 )
+                // Species guarantee: ensure every page's prompt contains the primary character's species
+                book = ImagePromptEnricher.guaranteeSpeciesConsistency(in: book)
                 storyBook = book
 
                 // Generate illustrations
@@ -545,16 +550,26 @@ final class CreationViewModel {
         isSuggestionCycleActive = true
 
         suggestionCycleTask = Task {
+            let clock = ContinuousClock()
+            let msPerChar: Double = 30
+
             while !Task.isCancelled {
                 let suggestion = promptSuggestions[currentSuggestionIndex % promptSuggestions.count]
                 activeSuggestion = suggestion
 
-                // Type out character by character
+                // Type out driven by elapsed time — smooth regardless of sleep jitter
                 suggestionOpacity = 1.0
-                for i in 1...suggestion.count {
-                    guard !Task.isCancelled else { return }
-                    suggestionDisplayText = String(suggestion.prefix(i))
-                    try? await Task.sleep(for: .milliseconds(30))
+                let typeStart = clock.now
+                let totalChars = suggestion.count
+
+                while !Task.isCancelled {
+                    let elapsed = typeStart.duration(to: clock.now)
+                    let elapsedMs = Double(elapsed.components.seconds) * 1000
+                        + Double(elapsed.components.attoseconds) / 1e15
+                    let targetChars = min(Int(elapsedMs / msPerChar) + 1, totalChars)
+                    suggestionDisplayText = String(suggestion.prefix(targetChars))
+                    if targetChars >= totalChars { break }
+                    try? await Task.sleep(for: .milliseconds(16))
                 }
 
                 // Hold for a few seconds so the user can read it

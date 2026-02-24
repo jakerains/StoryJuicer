@@ -132,6 +132,46 @@ enum ImagePromptEnricher {
         return result
     }
 
+    // MARK: - Species Guarantee Pass
+
+    /// Final safety net: ensures every page's image prompt contains the primary character's
+    /// species word. Runs AFTER all enrichment passes. If any page is still missing the
+    /// species, prepends a short species anchor (e.g. "A red squirrel. ") to the prompt.
+    ///
+    /// This catches cases where the LLM wrote a prompt without naming the character at all,
+    /// or used vague terms like "the little animal" that the name-based enricher can't fix.
+    static func guaranteeSpeciesConsistency(in book: StoryBook) -> StoryBook {
+        let characters = parseCharacterDescriptions(book.characterDescriptions)
+        guard let primary = characters.first, !primary.species.isEmpty else { return book }
+
+        let species = primary.species.lowercased()
+
+        let guaranteedPages = book.pages.map { page in
+            let promptLower = page.imagePrompt.lowercased()
+            if promptLower.contains(species) {
+                return page
+            }
+            // Species missing — prepend a species anchor using the injection phrase
+            let anchor = primary.injectionPhrase.first?.isUppercase == true
+                ? primary.injectionPhrase
+                : primary.injectionPhrase.prefix(1).uppercased() + primary.injectionPhrase.dropFirst()
+            let fixedPrompt = "\(anchor). \(page.imagePrompt)"
+            return StoryPage(
+                pageNumber: page.pageNumber,
+                text: page.text,
+                imagePrompt: fixedPrompt
+            )
+        }
+
+        return StoryBook(
+            title: book.title,
+            authorLine: book.authorLine,
+            moral: book.moral,
+            characterDescriptions: book.characterDescriptions,
+            pages: guaranteedPages
+        )
+    }
+
     // MARK: - Pre-Parsed Overloads (Upgrade 1)
 
     /// Enrich all imagePrompts using pre-parsed character entries.
