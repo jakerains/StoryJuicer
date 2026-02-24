@@ -32,8 +32,8 @@ enum SettingsTab: String, CaseIterable, Identifiable {
         }
     }
 
-    /// All tabs shown by default (excludes debug, which is opt-in).
+    /// All tabs shown by default (excludes premium and debug, which are hidden in public builds).
     static var defaultTabs: [SettingsTab] {
-        allCases.filter { $0 != .debug }
+        allCases.filter { $0 != .debug && $0 != .premium }
     }
 }

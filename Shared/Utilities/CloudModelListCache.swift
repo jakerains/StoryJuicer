@@ -44,6 +44,18 @@ final class CloudModelListCache {
         }
     }
 
+    /// Wipe all in-memory and persisted model caches, then re-seed curated defaults.
+    func clearAllCaches() {
+        textModels.removeAll()
+        imageModels.removeAll()
+        lastFetchTime.removeAll()
+        lastError.removeAll()
+        for provider in CloudProvider.allCases {
+            UserDefaults.standard.removeObject(forKey: Self.defaultsKeyPrefix + provider.rawValue)
+        }
+        loadFromDefaults()
+    }
+
     private func fetchModels(for provider: CloudProvider) async {
         guard let apiKey = CloudCredentialStore.bearerToken(for: provider) else {
             lastError[provider] = "Not authenticated"

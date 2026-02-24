@@ -189,10 +189,13 @@ struct MacGenerationProgressView: View {
         }
     }
 
+    @AppStorage("devModeUnlocked") private var devModeUnlocked: Bool = false
+
     private var phaseProviderLabel: String {
+        let premiumActive = devModeUnlocked && PremiumStore.load().tier.isActive
         switch viewModel.phase {
         case .generatingText:            return currentSettings.resolvedTextModelLabel
-        case .generatingCharacterSheet:  return "Premium"
+        case .generatingCharacterSheet:  return premiumActive ? "Premium" : currentSettings.resolvedTextModelLabel
         case .generatingImages:          return activeImageModelLabel
         default:                         return ""
         }
@@ -238,7 +241,7 @@ struct MacGenerationProgressView: View {
 
     private var currentSettings: ModelSelectionSettings {
         var settings = ModelSelectionStore.load()
-        if PremiumStore.load().tier.isActive {
+        if devModeUnlocked && PremiumStore.load().tier.isActive {
             settings.textProvider = .openAI
             settings.imageProvider = .openAI
         }

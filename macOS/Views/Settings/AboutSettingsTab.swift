@@ -2,10 +2,21 @@ import SwiftUI
 
 struct AboutSettingsTab: View {
     var updateManager: SoftwareUpdateManager
+    @Binding var devModeUnlocked: Bool
+
+    @State private var versionTapCount = 0
+    @State private var showDevAuth = false
+    @State private var devSecret = ""
+    @State private var devAuthError = ""
+    @State private var isVerifying = false
+    @AppStorage("devBypassSecret") private var storedBypassSecret: String = ""
 
     var body: some View {
         VStack(alignment: .leading, spacing: StoryJuicerGlassTokens.Spacing.xLarge) {
             softwareUpdateSection
+        }
+        .sheet(isPresented: $showDevAuth) {
+            devAuthSheet
         }
     }
 
@@ -27,6 +38,19 @@ struct AboutSettingsTab: View {
                     .font(StoryJuicerTypography.settingsBody)
                     .foregroundStyle(Color.sjText)
                     .settingsFieldChrome()
+                    .onTapGesture {
+                        versionTapCount += 1
+                        if versionTapCount >= 7 {
+                            versionTapCount = 0
+                            if devModeUnlocked {
+                                // Already unlocked — toggle it off
+                                devModeUnlocked = false
+                                storedBypassSecret = ""
+                            } else {
+                                showDevAuth = true
+                            }
+                        }
+                    }
             }
 
             SettingsControlRow(
@@ -58,6 +82,83 @@ struct AboutSettingsTab: View {
                 }
             }
         }
+    }
+
+    // MARK: - Dev Auth Sheet
+
+    private var devAuthSheet: some View {
+        VStack(spacing: StoryJuicerGlassTokens.Spacing.large) {
+            Image(systemName: "lock.shield")
+                .font(.system(size: 36))
+                .foregroundStyle(Color.sjCoral)
+
+            Text("Developer Access")
+                .font(StoryJuicerTypography.settingsSectionTitle)
+                .foregroundStyle(Color.sjGlassInk)
+
+            SecureField("Bypass secret", text: $devSecret)
+                .textFieldStyle(.roundedBorder)
+                .frame(width: 260)
+                .onSubmit { verifySecret() }
+
+            if !devAuthError.isEmpty {
+                Text(devAuthError)
+                    .font(StoryJuicerTypography.settingsMeta)
+                    .foregroundStyle(.red)
+            }
+
+            HStack(spacing: StoryJuicerGlassTokens.Spacing.medium) {
+                Button("Cancel") {
+                    devSecret = ""
+                    devAuthError = ""
+                    showDevAuth = false
+                }
+                .buttonStyle(.glass)
+
+                Button("Verify") {
+                    verifySecret()
+                }
+                .buttonStyle(.glassProminent)
+                .disabled(devSecret.isEmpty || isVerifying)
+            }
+        }
+        .padding(StoryJuicerGlassTokens.Spacing.xLarge)
+        .frame(width: 340)
+    }
+
+    private func verifySecret() {
+        guard !devSecret.isEmpty, !isVerifying else { return }
+        isVerifying = true
+        devAuthError = ""
+
+        Task {
+            let unlocked = await checkBypass(secret: devSecret)
+            await MainActor.run {
+                isVerifying = false
+                if unlocked {
+                    storedBypassSecret = devSecret
+                    devModeUnlocked = true
+                    devSecret = ""
+                    showDevAuth = false
+                } else {
+                    devAuthError = "Invalid secret"
+                }
+            }
+        }
+    }
+
+    private func checkBypass(secret: String) async -> Bool {
+        guard let url = URL(string: "https://storyfox.app/api/debug/config") else { return false }
+        do {
+            var request = URLRequest(url: url)
+            request.setValue(secret, forHTTPHeaderField: "X-Dev-Bypass")
+            let (data, _) = try await URLSession.shared.data(for: request)
+            if let json = try JSONSerialization.jsonObject(with: data) as? [String: Any],
+               let enabled = json["enabled"] as? Bool {
+                return enabled
+            }
+        } catch {}
+        return false
     }
 
     private var appVersionString: String {

@@ -1,6 +1,8 @@
 import CoreGraphics
+import FoundationModels
 import HuggingFace
 import ImageIO
+import ImagePlayground
 import SwiftUI
 
 /// Consolidated debug and diagnostics panel.
@@ -8,14 +10,20 @@ import SwiftUI
 struct DebugSettingsTab: View {
     @Binding var settings: ModelSelectionSettings
     @Bindable var modelCache: CloudModelListCache
+    var onLock: () -> Void
+
+    @State private var showLockConfirm = false
 
     var body: some View {
         VStack(alignment: .leading, spacing: StoryJuicerGlassTokens.Spacing.xLarge) {
             verboseLoggingSection
-            devBypassSection
+            providerAvailabilitySection
             premiumProxySection
             cloudProviderTestsSection
+            contentSafetyTesterSection
+            cacheManagementSection
             diagnosticsSection
+            devAccessSection
         }
     }
 
@@ -33,17 +41,17 @@ struct DebugSettingsTab: View {
         }
     }
 
-    // MARK: - Dev Bypass Secret
+    // MARK: - Provider Availability
 
-    private var devBypassSection: some View {
+    private var providerAvailabilitySection: some View {
         SettingsPanelCard {
             SettingsSectionHeader(
-                title: "Dev Bypass",
-                subtitle: "Secret token to unlock premium and debug features when they are disabled in production.",
-                systemImage: "key.fill"
+                title: "Provider Availability",
+                subtitle: "At-a-glance status of every text and image generation provider.",
+                systemImage: "antenna.radiowaves.left.and.right"
             )
 
-            DevBypassSecretField()
+            ProviderAvailabilityPanel()
         }
     }
 
@@ -92,6 +100,61 @@ struct DebugSettingsTab: View {
     /// Each test row handles missing credentials with its own "No API key" message.
     private var activeCloudProviders: [CloudProvider] {
         CloudProvider.allCases.filter { !$0.usesProxy }
+    }
+
+    // MARK: - Content Safety Tester
+
+    private var contentSafetyTesterSection: some View {
+        SettingsPanelCard {
+            SettingsSectionHeader(
+                title: "Content Safety Tester",
+                subtitle: "Test how the safety pipeline processes any concept or image prompt.",
+                systemImage: "shield.checkmark"
+            )
+
+            ContentSafetyTester()
+        }
+    }
+
+    // MARK: - Cache Management
+
+    private var cacheManagementSection: some View {
+        SettingsPanelCard {
+            SettingsSectionHeader(
+                title: "Cache Management",
+                subtitle: "Clear stale caches that cause confusion during development.",
+                systemImage: "trash.circle"
+            )
+
+            CacheManagementPanel(modelCache: modelCache, settings: $settings)
+        }
+    }
+
+    // MARK: - Lock Developer Mode
+
+    private var devAccessSection: some View {
+        SettingsPanelCard {
+            SettingsSectionHeader(
+                title: "Developer Access",
+                subtitle: "Lock developer mode to hide Premium and Debug tabs.",
+                systemImage: "lock.shield"
+            )
+
+            Button(role: .destructive) {
+                showLockConfirm = true
+            } label: {
+                Label("Lock Developer Mode", systemImage: "lock.fill")
+            }
+            .buttonStyle(.glassProminent)
+            .alert("Lock Developer Mode?", isPresented: $showLockConfirm) {
+                Button("Lock", role: .destructive) {
+                    onLock()
+                }
+                Button("Cancel", role: .cancel) {}
+            } message: {
+                Text("This will clear your bypass secret and hide Premium and Debug tabs. You can re-enable by tapping the version number 7 times in About.")
+            }
+        }
     }
 
     // MARK: - Diagnostics
@@ -179,28 +242,459 @@ struct DebugSettingsTab: View {
     }
 }
 
-// MARK: - Dev Bypass Secret Field
+// MARK: - Provider Availability Panel
 
-private struct DevBypassSecretField: View {
-    @AppStorage("devBypassSecret") private var secret: String = ""
+private struct ProviderAvailabilityPanel: View {
+    @State private var textStatus: [StoryTextProvider: ProviderStatus] = [:]
+    @State private var imageStatus: [StoryImageProvider: ProviderStatus] = [:]
+    @State private var isRefreshing = false
+
+    private enum ProviderStatus {
+        case available
+        case unavailable(String)
+        case hidden
+
+        var color: Color {
+            switch self {
+            case .available: .green
+            case .unavailable: .red
+            case .hidden: .secondary
+            }
+        }
+
+        var label: String {
+            switch self {
+            case .available: "Available"
+            case .unavailable(let reason): reason
+            case .hidden: "Hidden"
+            }
+        }
+    }
 
     var body: some View {
-        VStack(alignment: .leading, spacing: StoryJuicerGlassTokens.Spacing.small) {
-            HStack {
-                SecureField("Bypass secret", text: $secret)
-                    .textFieldStyle(.roundedBorder)
-                    .frame(maxWidth: 300)
+        VStack(alignment: .leading, spacing: StoryJuicerGlassTokens.Spacing.medium) {
+            Text("Text Providers")
+                .font(StoryJuicerTypography.settingsBody.weight(.semibold))
+                .foregroundStyle(Color.sjText)
 
-                if !secret.isEmpty {
-                    Image(systemName: "checkmark.circle.fill")
-                        .foregroundStyle(Color.green)
-                        .font(.system(size: 14))
+            ForEach(StoryTextProvider.allCases, id: \.self) { provider in
+                statusRow(
+                    name: provider.displayName,
+                    status: textStatus[provider] ?? .unavailable("Checking…")
+                )
+            }
+
+            Divider()
+
+            Text("Image Providers")
+                .font(StoryJuicerTypography.settingsBody.weight(.semibold))
+                .foregroundStyle(Color.sjText)
+
+            ForEach(StoryImageProvider.allCases, id: \.self) { provider in
+                statusRow(
+                    name: provider.displayName,
+                    status: imageStatus[provider] ?? .unavailable("Checking…")
+                )
+            }
+
+            Button {
+                Task { await refreshAll() }
+            } label: {
+                if isRefreshing {
+                    HStack(spacing: 4) {
+                        ProgressView().controlSize(.small)
+                        Text("Refreshing…")
+                    }
+                } else {
+                    Label("Refresh", systemImage: "arrow.clockwise")
+                }
+            }
+            .buttonStyle(.glass)
+            .disabled(isRefreshing)
+        }
+        .task { await refreshAll() }
+    }
+
+    private func statusRow(name: String, status: ProviderStatus) -> some View {
+        HStack(spacing: 8) {
+            Circle()
+                .fill(status.color)
+                .frame(width: 8, height: 8)
+            Text(name)
+                .font(StoryJuicerTypography.settingsBody)
+                .foregroundStyle(Color.sjText)
+            Spacer()
+            Text(status.label)
+                .font(StoryJuicerTypography.settingsMeta)
+                .foregroundStyle(status.color == .secondary ? Color.sjMuted : Color.sjSecondaryText)
+                .lineLimit(1)
+        }
+    }
+
+    private func refreshAll() async {
+        isRefreshing = true
+
+        // Text providers
+        for provider in StoryTextProvider.allCases {
+            textStatus[provider] = await checkTextProvider(provider)
+        }
+
+        // Image providers
+        for provider in StoryImageProvider.allCases {
+            imageStatus[provider] = await checkImageProvider(provider)
+        }
+
+        isRefreshing = false
+    }
+
+    private func checkTextProvider(_ provider: StoryTextProvider) async -> ProviderStatus {
+        switch provider {
+        case .appleFoundation:
+            return SystemLanguageModel.default.availability == .available
+                ? .available : .unavailable("Not available")
+        case .mlxSwift:
+            return .available
+        case .huggingFace:
+            return CloudCredentialStore.isAuthenticated(for: .huggingFace)
+                ? .available : .unavailable("No credentials")
+        case .openAI:
+            let hasAuth = CloudCredentialStore.isAuthenticated(for: .openAI)
+            let premium = PremiumStore.load()
+            if premium.tier == .premium || premium.tier == .premiumPlus { return .available }
+            return hasAuth ? .available : .unavailable("No credentials")
+        case .openRouter:
+            return CloudCredentialStore.isAuthenticated(for: .openRouter)
+                ? .available : .unavailable("No credentials")
+        case .togetherAI:
+            return CloudCredentialStore.isAuthenticated(for: .togetherAI)
+                ? .available : .unavailable("No credentials")
+        }
+    }
+
+    private func checkImageProvider(_ provider: StoryImageProvider) async -> ProviderStatus {
+        switch provider {
+        case .imagePlayground:
+            let isAvailable = await MainActor.run {
+                ImagePlaygroundViewController.isAvailable
+            }
+            return isAvailable ? .available : .unavailable("Not available")
+        case .diffusers:
+            return .hidden
+        case .huggingFace:
+            return CloudCredentialStore.isAuthenticated(for: .huggingFace)
+                ? .available : .unavailable("No credentials")
+        case .openAI:
+            let hasAuth = CloudCredentialStore.isAuthenticated(for: .openAI)
+            let premium = PremiumStore.load()
+            if premium.tier == .premium || premium.tier == .premiumPlus { return .available }
+            return hasAuth ? .available : .unavailable("No credentials")
+        case .openRouter:
+            return CloudCredentialStore.isAuthenticated(for: .openRouter)
+                ? .available : .unavailable("No credentials")
+        case .togetherAI:
+            return CloudCredentialStore.isAuthenticated(for: .togetherAI)
+                ? .available : .unavailable("No credentials")
+        }
+    }
+}
+
+// MARK: - Content Safety Tester
+
+private struct ContentSafetyTester: View {
+    @State private var input = ""
+    @State private var isTestingConcept = false
+    @State private var isTestingPrompt = false
+    @State private var conceptResult: SafetyTestResult?
+    @State private var promptResult: SafetyTestResult?
+
+    private struct SafetyTestResult {
+        var isAllowed: Bool
+        var reason: String?
+        var sanitized: String?
+        var hasUnsafe: Bool?
+        var syncPrompt: String?
+        var syncCharCount: Int?
+        var asyncPrompt: String?
+        var asyncCharCount: Int?
+        var isLoadingAsync: Bool = false
+    }
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: StoryJuicerGlassTokens.Spacing.medium) {
+            TextField("Enter a concept or image prompt…", text: $input)
+                .textFieldStyle(.roundedBorder)
+
+            HStack(spacing: StoryJuicerGlassTokens.Spacing.small) {
+                Button {
+                    Task { await testConcept() }
+                } label: {
+                    if isTestingConcept {
+                        HStack(spacing: 4) {
+                            ProgressView().controlSize(.small)
+                            Text("Testing…")
+                        }
+                    } else {
+                        Label("Test Concept", systemImage: "text.magnifyingglass")
+                    }
+                }
+                .buttonStyle(.glassProminent)
+                .disabled(input.isEmpty || isTestingConcept)
+
+                Button {
+                    Task { await testImagePrompt() }
+                } label: {
+                    if isTestingPrompt {
+                        HStack(spacing: 4) {
+                            ProgressView().controlSize(.small)
+                            Text("Testing…")
+                        }
+                    } else {
+                        Label("Test Image Prompt", systemImage: "photo.badge.checkmark")
+                    }
+                }
+                .buttonStyle(.glass)
+                .disabled(input.isEmpty || isTestingPrompt)
+            }
+
+            if let result = conceptResult {
+                safetyResultView(title: "Concept Validation", result: result)
+            }
+
+            if let result = promptResult {
+                safetyResultView(title: "Image Prompt Pipeline", result: result)
+            }
+        }
+    }
+
+    private func safetyResultView(title: String, result: SafetyTestResult) -> some View {
+        VStack(alignment: .leading, spacing: StoryJuicerGlassTokens.Spacing.small) {
+            HStack(spacing: 6) {
+                Image(systemName: result.isAllowed ? "checkmark.circle.fill" : "xmark.circle.fill")
+                    .foregroundStyle(result.isAllowed ? .green : .red)
+                Text(title)
+                    .font(StoryJuicerTypography.settingsBody.weight(.semibold))
+                    .foregroundStyle(Color.sjText)
+                Text(result.isAllowed ? "ALLOWED" : "BLOCKED")
+                    .font(.system(size: 10, weight: .bold).monospaced())
+                    .foregroundStyle(result.isAllowed ? .green : .red)
+            }
+
+            if let reason = result.reason {
+                safetyRow("Reason", value: reason, isError: true)
+            }
+            if let sanitized = result.sanitized {
+                safetyRow("Sanitized", value: sanitized)
+            }
+            if let hasUnsafe = result.hasUnsafe {
+                safetyRow("Has unsafe content", value: hasUnsafe ? "Yes" : "No", isError: hasUnsafe)
+            }
+            if let sync = result.syncPrompt {
+                safetyRow("Safe prompt (sync)", value: "\(sync) [\(result.syncCharCount ?? 0) chars]")
+            }
+            if result.isLoadingAsync {
+                HStack(spacing: 4) {
+                    Text("Safe prompt (FM)")
+                        .font(StoryJuicerTypography.settingsMeta)
+                        .foregroundStyle(Color.sjSecondaryText)
+                    ProgressView().controlSize(.mini)
+                }
+            } else if let asyncP = result.asyncPrompt {
+                safetyRow("Safe prompt (FM)", value: "\(asyncP) [\(result.asyncCharCount ?? 0) chars]")
+            }
+        }
+        .padding(StoryJuicerGlassTokens.Spacing.small)
+        .background(.ultraThinMaterial, in: RoundedRectangle(cornerRadius: 8))
+    }
+
+    private func safetyRow(_ label: String, value: String, isError: Bool = false) -> some View {
+        VStack(alignment: .leading, spacing: 2) {
+            Text(label)
+                .font(StoryJuicerTypography.settingsMeta)
+                .foregroundStyle(Color.sjSecondaryText)
+            Text(value)
+                .font(StoryJuicerTypography.settingsMeta.monospaced())
+                .foregroundStyle(isError ? Color.sjCoral : Color.sjText)
+                .textSelection(.enabled)
+                .lineLimit(4)
+        }
+    }
+
+    private func testConcept() async {
+        isTestingConcept = true
+        let checkResult = ContentSafetyPolicy.validateConcept(input)
+        let hasUnsafe = ContentSafetyPolicy.hasUnsafeContent(input)
+        let sanitized = ContentSafetyPolicy.sanitizeConcept(input)
+
+        switch checkResult {
+        case .allowed(let clean):
+            conceptResult = SafetyTestResult(
+                isAllowed: true,
+                sanitized: clean,
+                hasUnsafe: hasUnsafe
+            )
+        case .blocked(let reason):
+            conceptResult = SafetyTestResult(
+                isAllowed: false,
+                reason: reason,
+                sanitized: sanitized,
+                hasUnsafe: hasUnsafe
+            )
+        }
+        isTestingConcept = false
+    }
+
+    private func testImagePrompt() async {
+        isTestingPrompt = true
+        let hasUnsafe = ContentSafetyPolicy.hasUnsafeContent(input)
+        let syncPrompt = ContentSafetyPolicy.safeIllustrationPrompt(input)
+
+        promptResult = SafetyTestResult(
+            isAllowed: !hasUnsafe,
+            hasUnsafe: hasUnsafe,
+            syncPrompt: syncPrompt,
+            syncCharCount: syncPrompt.count,
+            isLoadingAsync: true
+        )
+
+        let asyncPrompt = await ContentSafetyPolicy.safeIllustrationPromptAsync(input)
+        promptResult?.asyncPrompt = asyncPrompt
+        promptResult?.asyncCharCount = asyncPrompt.count
+        promptResult?.isLoadingAsync = false
+
+        isTestingPrompt = false
+    }
+}
+
+// MARK: - Cache Management Panel
+
+private struct CacheManagementPanel: View {
+    @Bindable var modelCache: CloudModelListCache
+    @Binding var settings: ModelSelectionSettings
+    @State private var isClearing = false
+    @State private var showResetConfirm = false
+    @State private var showDeleteDiagnosticsConfirm = false
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: StoryJuicerGlassTokens.Spacing.medium) {
+            // Cloud Model Lists
+            cacheRow(
+                title: "Cloud Model Lists",
+                description: "In-memory + UserDefaults cache of provider model lists (10min TTL)"
+            ) {
+                Button {
+                    Task {
+                        isClearing = true
+                        modelCache.clearAllCaches()
+                        await modelCache.refreshAllAuthenticated()
+                        isClearing = false
+                    }
+                } label: {
+                    if isClearing {
+                        HStack(spacing: 4) {
+                            ProgressView().controlSize(.small)
+                            Text("Clearing…")
+                        }
+                    } else {
+                        Label("Clear & Refresh", systemImage: "arrow.clockwise")
+                    }
+                }
+                .buttonStyle(.glass)
+                .controlSize(.small)
+                .disabled(isClearing)
+            }
+
+            Divider()
+
+            // HF Inference Router
+            cacheRow(
+                title: "HF Inference Router",
+                description: "Cached provider-to-URL mappings for HuggingFace models"
+            ) {
+                Button {
+                    Task { await HFInferenceRouter.shared.clearCache() }
+                } label: {
+                    Label("Clear", systemImage: "xmark.circle")
+                }
+                .buttonStyle(.glass)
+                .controlSize(.small)
+            }
+
+            Divider()
+
+            // Diagnostics Logs
+            cacheRow(
+                title: "Diagnostics Logs",
+                description: "JSONL logs for image generation sessions"
+            ) {
+                HStack(spacing: StoryJuicerGlassTokens.Spacing.small) {
+                    Button {
+                        let path = GenerationDiagnosticsLogger.logFilePathString()
+                        let folderURL = URL(fileURLWithPath: path).deletingLastPathComponent()
+                        NSWorkspace.shared.open(folderURL)
+                    } label: {
+                        Label("Open", systemImage: "folder")
+                    }
+                    .buttonStyle(.glass)
+                    .controlSize(.small)
+
+                    Button(role: .destructive) {
+                        showDeleteDiagnosticsConfirm = true
+                    } label: {
+                        Label("Delete", systemImage: "trash")
+                    }
+                    .buttonStyle(.glass)
+                    .controlSize(.small)
+                    .alert("Delete Diagnostics Logs?", isPresented: $showDeleteDiagnosticsConfirm) {
+                        Button("Delete", role: .destructive) {
+                            let path = GenerationDiagnosticsLogger.logFilePathString()
+                            try? FileManager.default.removeItem(atPath: path)
+                        }
+                        Button("Cancel", role: .cancel) {}
+                    } message: {
+                        Text("This will permanently delete all image generation diagnostic logs.")
+                    }
                 }
             }
 
-            Text("Stored locally. Sent as X-Dev-Bypass header with all premium and debug requests.")
+            Divider()
+
+            // Model Settings Reset
+            cacheRow(
+                title: "Model Settings",
+                description: "Reset all provider and model selections to factory defaults"
+            ) {
+                Button(role: .destructive) {
+                    showResetConfirm = true
+                } label: {
+                    Label("Reset", systemImage: "arrow.uturn.backward")
+                }
+                .buttonStyle(.glass)
+                .controlSize(.small)
+                .alert("Reset Model Settings?", isPresented: $showResetConfirm) {
+                    Button("Reset", role: .destructive) {
+                        settings = .default
+                    }
+                    Button("Cancel", role: .cancel) {}
+                } message: {
+                    Text("This will revert all provider and model selections to their default values.")
+                }
+            }
+        }
+    }
+
+    private func cacheRow<Action: View>(
+        title: String,
+        description: String,
+        @ViewBuilder action: () -> Action
+    ) -> some View {
+        VStack(alignment: .leading, spacing: StoryJuicerGlassTokens.Spacing.small) {
+            Text(title)
+                .font(StoryJuicerTypography.settingsBody.weight(.semibold))
+                .foregroundStyle(Color.sjText)
+            Text(description)
                 .font(StoryJuicerTypography.settingsMeta)
                 .foregroundStyle(Color.sjMuted)
+            action()
         }
     }
 }

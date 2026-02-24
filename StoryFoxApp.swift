@@ -161,6 +161,7 @@ struct MainView: View {
     @State private var selectedSavedBookID: UUID?
     @AppStorage("sidebar.favoritesExpanded") private var isFavoritesExpanded = true
     @AppStorage("sidebar.storybooksExpanded") private var isStorybooksExpanded = true
+    @AppStorage("devModeUnlocked") private var devModeUnlocked: Bool = false
 #if os(iOS)
     @State private var showingSettings = false
     @Environment(\.scenePhase) private var scenePhase
@@ -645,7 +646,7 @@ struct MainView: View {
                 readerVM.originalConcept = viewModel.storyConcept
                 readerVM.parsedCharacters = viewModel.parsedCharacters
                 var settings = ModelSelectionStore.load()
-                if PremiumStore.load().tier.isActive {
+                if devModeUnlocked && PremiumStore.load().tier.isActive {
                     settings.textProvider = .openAI
                     settings.imageProvider = .openAI
                 }
@@ -679,7 +680,7 @@ struct MainView: View {
         }
 
         var settings = ModelSelectionStore.load()
-        if PremiumStore.load().tier.isActive {
+        if devModeUnlocked && PremiumStore.load().tier.isActive {
             settings.textProvider = .openAI
             settings.imageProvider = .openAI
         }

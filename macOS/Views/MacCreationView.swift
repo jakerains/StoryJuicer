@@ -33,19 +33,21 @@ struct MacCreationView: View {
     @State private var creationMode: CreationMode = .quick
     @State private var qaViewModel = StoryQAViewModel()
     @State private var showBookSetupPopover = false
-    @State private var premiumState: PremiumState = PremiumStore.load()
     @State private var generationMode: GenerationMode = {
         let settings = ModelSelectionStore.load()
         return settings.textProvider.isCloud ? .cloud : .local
     }()
     @FocusState private var editorFocused: Bool
+    @AppStorage("devModeUnlocked") private var devModeUnlocked: Bool = false
+    @State private var premiumState: PremiumState = PremiumStore.load()
 
+    /// Premium is only active when dev mode is unlocked AND the user has enabled a premium tier.
     private var isPremiumActive: Bool {
-        premiumState.tier.isActive
+        devModeUnlocked && premiumState.tier.isActive
     }
 
     private var isPremiumPlus: Bool {
-        premiumState.tier == .premiumPlus
+        devModeUnlocked && premiumState.tier == .premiumPlus
     }
 
     private var hasCloudCredential: Bool {
