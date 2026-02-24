@@ -12,6 +12,33 @@ export interface ChangelogEntry {
 
 export const changelog: ChangelogEntry[] = [
   {
+    version: "1.9.2",
+    date: "2026-02-24",
+    title: "Character Consistency & Richer Suggestions",
+    changes: [
+      {
+        type: "added",
+        description:
+          "Story suggestions now feature 10 diverse ideas — animals, kids, robots, toys, and more",
+      },
+      {
+        type: "changed",
+        description:
+          "Stronger character consistency across illustrations — species and breed stay the same on every page",
+      },
+      {
+        type: "changed",
+        description:
+          "Smoother typewriter animation for story suggestions",
+      },
+      {
+        type: "fixed",
+        description:
+          "EPUB covers now display the book title and author in iBooks and other readers",
+      },
+    ],
+  },
+  {
     version: "1.9.1",
     date: "2026-02-24",
     title: "Maintenance Release",
