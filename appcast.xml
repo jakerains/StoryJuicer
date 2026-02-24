@@ -7,6 +7,21 @@
         <language>en</language>
         <!-- Items will be added by generate_appcast after the first Sparkle-enabled release -->
         <item>
+            <title>1.9.1</title>
+            <pubDate>Tue, 24 Feb 2026 12:08:40 -0600</pubDate>
+            <sparkle:version>32</sparkle:version>
+            <sparkle:shortVersionString>1.9.1</sparkle:shortVersionString>
+            <description><![CDATA[<h2>Version 1.9.1 — Maintenance Release</h2>
+<ul>
+  <li><strong>Improved:</strong> Backend enhancements and bug fixes for a smoother experience</li>
+</ul>]]></description>
+            <sparkle:minimumSystemVersion>26.0</sparkle:minimumSystemVersion>
+            <enclosure url="https://github.com/jakerains/StoryFox/releases/download/v1.9.1/StoryFox.dmg" length="39306184" type="application/octet-stream" sparkle:edSignature="pd7G3nIEMZ2Nfj6i4lyVC6esmwiRtKBuCDVV/pQKMuT2y1eiiGazEAGqqG8uyLuNxQv03lqWGPVCyefsG91XBA=="/>
+            <sparkle:deltas>
+                <enclosure url="https://github.com/jakerains/StoryFox/releases/download/v1.9.1/StoryFox32-11.delta" sparkle:deltaFrom="11" length="23596366" type="application/octet-stream" sparkle:deltaFromSparkleExecutableSize="860560" sparkle:deltaFromSparkleLocales="de,he,ar,el,ja,fa,uk" sparkle:edSignature="rVvmFuZKThYPvolQf9FSRY6i8J3yVRp4qKOKxivkspG0cimUXoBtlwwm2W9agK5mG2QEZPNGSFISi9nuQv/9Cg=="/>
+            </sparkle:deltas>
+        </item>
+        <item>
             <title>1.9.0</title>
             <pubDate>Mon, 23 Feb 2026 22:24:04 -0600</pubDate>
             <sparkle:version>31</sparkle:version>
@@ -40,23 +55,6 @@
             <enclosure url="https://github.com/jakerains/StoryFox/releases/download/v1.8.0/StoryFox.dmg" length="32519876" type="application/octet-stream" sparkle:edSignature="ZZhtmfSVH6rqtYJBIUXgZgGIR/OzgfmoHv9TSKiTjOBEfunZytsez7VhJ5nRmAfX1Xc2pICGCsbGfNGJearuAA=="/>
             <sparkle:deltas>
                 <enclosure url="https://github.com/jakerains/StoryFox/releases/download/v1.8.0/StoryFox29-11.delta" sparkle:deltaFrom="11" length="17630662" type="application/octet-stream" sparkle:deltaFromSparkleExecutableSize="860560" sparkle:deltaFromSparkleLocales="de,he,ar,el,ja,fa,uk" sparkle:edSignature="HViSuKIOF/DXrd9E1JTQvnD+UdREDAqjdjnJt6s55bodi/Qizr+t+cHXIRXOEt726s4luRsT+tWloFED5nZ8AQ=="/>
-            </sparkle:deltas>
-        </item>
-        <item>
-            <title>1.7.6</title>
-            <pubDate>Sat, 21 Feb 2026 18:54:46 -0600</pubDate>
-            <sparkle:version>28</sparkle:version>
-            <sparkle:shortVersionString>1.7.6</sparkle:shortVersionString>
-            <description><![CDATA[<h2>Version 1.7.6 — Smarter Illustrations</h2>
-<ul>
-  <li><strong>New:</strong> Each story detail — character, setting, action, mood — is now sent as a separate concept to the image engine for sharper, more faithful illustrations</li>
-  <li><strong>New:</strong> If an image fails to generate, StoryFox progressively simplifies the prompt while keeping the main character intact</li>
-  <li><strong>Improved:</strong> Better breed-specific rendering for dog and cat characters</li>
-</ul>]]></description>
-            <sparkle:minimumSystemVersion>26.0</sparkle:minimumSystemVersion>
-            <enclosure url="https://github.com/jakerains/StoryFox/releases/download/v1.7.6/StoryFox.dmg" length="32435919" type="application/octet-stream" sparkle:edSignature="zNeRdt2LCvLIVA2Zv852I2hW6xvP6CwHZggjh300TgbPVlvU4lNjnL6bRNhJ98bsW5xDyZM/B+WFdbb7Cf+pDg=="/>
-            <sparkle:deltas>
-                <enclosure url="https://github.com/jakerains/StoryFox/releases/download/v1.7.6/StoryFox28-11.delta" sparkle:deltaFrom="11" length="17587746" type="application/octet-stream" sparkle:deltaFromSparkleExecutableSize="860560" sparkle:deltaFromSparkleLocales="de,he,ar,el,ja,fa,uk" sparkle:edSignature="+vGU9rVD0vDzgHJTScXBLoIONCG0iSQSXoU187G7u53ZJxhum94R3FLKKqSjqbuX9i7xIJm9/gVVLJ+97H+cCQ=="/>
             </sparkle:deltas>
         </item>
     </channel>
