@@ -7,6 +7,23 @@
         <language>en</language>
         <!-- Items will be added by generate_appcast after the first Sparkle-enabled release -->
         <item>
+            <title>1.9.0</title>
+            <pubDate>Mon, 23 Feb 2026 22:24:04 -0600</pubDate>
+            <sparkle:version>31</sparkle:version>
+            <sparkle:shortVersionString>1.9.0</sparkle:shortVersionString>
+            <description><![CDATA[<h2>Version 1.9.0 — Bug Fixes, Model Improvements & Premium Preview</h2>
+<ul>
+  <li><strong>Fixed:</strong> Various bug fixes and stability improvements for smoother story generation</li>
+  <li><strong>Improved:</strong> AI models now follow your story prompts and illustration instructions more reliably</li>
+  <li><strong>New:</strong> Early preview of StoryFox Premium — an advanced AI tier is coming soon</li>
+</ul>]]></description>
+            <sparkle:minimumSystemVersion>26.0</sparkle:minimumSystemVersion>
+            <enclosure url="https://github.com/jakerains/StoryFox/releases/download/v1.9.0/StoryFox.dmg" length="39230949" type="application/octet-stream" sparkle:edSignature="SRmiF3JGLEAWG247an8yNq4LhEszasPehm/8ea17r+RR8bxJJwDs9NLjOQSRXknr3LAx/bZgHI7SqiDL5rYEBA=="/>
+            <sparkle:deltas>
+                <enclosure url="https://github.com/jakerains/StoryFox/releases/download/v1.9.0/StoryFox31-11.delta" sparkle:deltaFrom="11" length="23545706" type="application/octet-stream" sparkle:deltaFromSparkleExecutableSize="860560" sparkle:deltaFromSparkleLocales="de,he,ar,el,ja,fa,uk" sparkle:edSignature="CpDn0LcwCr2aKFLqeu1yGrxSI+ZIWyKbHs9/A5fZ+xjy2oTesYJO7eSq/f1pj2Sp1Nb4IJTxCFggS2U1rCTODg=="/>
+            </sparkle:deltas>
+        </item>
+        <item>
             <title>1.8.0</title>
             <pubDate>Sat, 21 Feb 2026 22:12:38 -0600</pubDate>
             <sparkle:version>29</sparkle:version>
@@ -40,24 +57,6 @@
             <enclosure url="https://github.com/jakerains/StoryFox/releases/download/v1.7.6/StoryFox.dmg" length="32435919" type="application/octet-stream" sparkle:edSignature="zNeRdt2LCvLIVA2Zv852I2hW6xvP6CwHZggjh300TgbPVlvU4lNjnL6bRNhJ98bsW5xDyZM/B+WFdbb7Cf+pDg=="/>
             <sparkle:deltas>
                 <enclosure url="https://github.com/jakerains/StoryFox/releases/download/v1.7.6/StoryFox28-11.delta" sparkle:deltaFrom="11" length="17587746" type="application/octet-stream" sparkle:deltaFromSparkleExecutableSize="860560" sparkle:deltaFromSparkleLocales="de,he,ar,el,ja,fa,uk" sparkle:edSignature="+vGU9rVD0vDzgHJTScXBLoIONCG0iSQSXoU187G7u53ZJxhum94R3FLKKqSjqbuX9i7xIJm9/gVVLJ+97H+cCQ=="/>
-            </sparkle:deltas>
-        </item>
-        <item>
-            <title>1.7.5</title>
-            <pubDate>Sat, 21 Feb 2026 12:10:01 -0600</pubDate>
-            <sparkle:version>27</sparkle:version>
-            <sparkle:shortVersionString>1.7.5</sparkle:shortVersionString>
-            <description><![CDATA[<h2>Version 1.7.5 — Story Info & Release Notes</h2>
-<ul>
-  <li><strong>New:</strong> Story Info now shows which AI created your story — see the text and image providers at a glance</li>
-  <li><strong>New:</strong> See the image prompt for the page you're reading in Story Info</li>
-  <li><strong>New:</strong> AI provider and model details are saved with each storybook</li>
-  <li><strong>Improved:</strong> Update dialog now shows what's new in each version</li>
-</ul>]]></description>
-            <sparkle:minimumSystemVersion>26.0</sparkle:minimumSystemVersion>
-            <enclosure url="https://github.com/jakerains/StoryFox/releases/download/v1.7.5/StoryFox.dmg" length="32439249" type="application/octet-stream" sparkle:edSignature="+haZ5JiWGSWMJGs79OpmiR/CiAGI18kPiSEwEfqZJqIyLOvQ6zvVIYJevyUvwvv48sGnDXsorNnNtkfYghV4CA=="/>
-            <sparkle:deltas>
-                <enclosure url="https://github.com/jakerains/StoryFox/releases/download/v1.7.5/StoryFox27-11.delta" sparkle:deltaFrom="11" length="17588130" type="application/octet-stream" sparkle:deltaFromSparkleExecutableSize="860560" sparkle:deltaFromSparkleLocales="de,he,ar,el,ja,fa,uk" sparkle:edSignature="SGBJQwauM0DdPOZ2e04E4vsiXriH9QpLDb2hTMMlaLk163DSOhYAEHL+/ssT815z/23qh30lPP+PX89+N/2KDw=="/>
             </sparkle:deltas>
         </item>
     </channel>
