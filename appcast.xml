@@ -7,6 +7,24 @@
         <language>en</language>
         <!-- Items will be added by generate_appcast after the first Sparkle-enabled release -->
         <item>
+            <title>1.9.2</title>
+            <pubDate>Tue, 24 Feb 2026 13:13:54 -0600</pubDate>
+            <sparkle:version>33</sparkle:version>
+            <sparkle:shortVersionString>1.9.2</sparkle:shortVersionString>
+            <description><![CDATA[<h2>Version 1.9.2 — Character Consistency & Richer Suggestions</h2>
+<ul>
+  <li><strong>New:</strong> 10 diverse story suggestions every session — animals, kids, robots, toys, and more</li>
+  <li><strong>Improved:</strong> Characters stay consistent across every page — same species, same look, every illustration</li>
+  <li><strong>Improved:</strong> Smoother typewriter animation for story suggestions</li>
+  <li><strong>Fixed:</strong> EPUB covers now show the book title and author in iBooks</li>
+</ul>]]></description>
+            <sparkle:minimumSystemVersion>26.0</sparkle:minimumSystemVersion>
+            <enclosure url="https://github.com/jakerains/StoryFox/releases/download/v1.9.2/StoryFox.dmg" length="39308767" type="application/octet-stream" sparkle:edSignature="+NKIo2Gud6HUAkf/EWgAka57I4VlucZNhyUP7el0aeC+yadY4SiomsKKoX2tUgg/lTBYFwHT0WNIK2H0H/1yAg=="/>
+            <sparkle:deltas>
+                <enclosure url="https://github.com/jakerains/StoryFox/releases/download/v1.9.2/StoryFox33-11.delta" sparkle:deltaFrom="11" length="23602322" type="application/octet-stream" sparkle:deltaFromSparkleExecutableSize="860560" sparkle:deltaFromSparkleLocales="de,he,ar,el,ja,fa,uk" sparkle:edSignature="ObY4PhWlRdgGF3lypd95NL0sleegfLIeZco/aZklSG1xk21hqt0ZiQq7a4Gpx9WxbUz5+Y1PCuHMWI+65b18CA=="/>
+            </sparkle:deltas>
+        </item>
+        <item>
             <title>1.9.1</title>
             <pubDate>Tue, 24 Feb 2026 12:08:40 -0600</pubDate>
             <sparkle:version>32</sparkle:version>
@@ -36,25 +54,6 @@
             <enclosure url="https://github.com/jakerains/StoryFox/releases/download/v1.9.0/StoryFox.dmg" length="39230949" type="application/octet-stream" sparkle:edSignature="SRmiF3JGLEAWG247an8yNq4LhEszasPehm/8ea17r+RR8bxJJwDs9NLjOQSRXknr3LAx/bZgHI7SqiDL5rYEBA=="/>
             <sparkle:deltas>
                 <enclosure url="https://github.com/jakerains/StoryFox/releases/download/v1.9.0/StoryFox31-11.delta" sparkle:deltaFrom="11" length="23545706" type="application/octet-stream" sparkle:deltaFromSparkleExecutableSize="860560" sparkle:deltaFromSparkleLocales="de,he,ar,el,ja,fa,uk" sparkle:edSignature="CpDn0LcwCr2aKFLqeu1yGrxSI+ZIWyKbHs9/A5fZ+xjy2oTesYJO7eSq/f1pj2Sp1Nb4IJTxCFggS2U1rCTODg=="/>
-            </sparkle:deltas>
-        </item>
-        <item>
-            <title>1.8.0</title>
-            <pubDate>Sat, 21 Feb 2026 22:12:38 -0600</pubDate>
-            <sparkle:version>29</sparkle:version>
-            <sparkle:shortVersionString>1.8.0</sparkle:shortVersionString>
-            <description><![CDATA[<h2>Version 1.8.0 — Prompt Suggestions & Smarter Cloud Generation</h2>
-<ul>
-  <li><strong>New:</strong> AI-generated story prompt suggestions appear on the creation screen with a typewriter animation — tap one to start generating instantly</li>
-  <li><strong>New:</strong> Recommended models highlighted at the top of the HuggingFace text model picker</li>
-  <li><strong>New:</strong> Copy Error button on error banners for easier troubleshooting</li>
-  <li><strong>Improved:</strong> Cloud text generation no longer depends on on-device models — smoother experience with HuggingFace and other cloud providers</li>
-  <li><strong>Fixed:</strong> Creation mode tooltips now appear directly above the hovered button</li>
-</ul>]]></description>
-            <sparkle:minimumSystemVersion>26.0</sparkle:minimumSystemVersion>
-            <enclosure url="https://github.com/jakerains/StoryFox/releases/download/v1.8.0/StoryFox.dmg" length="32519876" type="application/octet-stream" sparkle:edSignature="ZZhtmfSVH6rqtYJBIUXgZgGIR/OzgfmoHv9TSKiTjOBEfunZytsez7VhJ5nRmAfX1Xc2pICGCsbGfNGJearuAA=="/>
-            <sparkle:deltas>
-                <enclosure url="https://github.com/jakerains/StoryFox/releases/download/v1.8.0/StoryFox29-11.delta" sparkle:deltaFrom="11" length="17630662" type="application/octet-stream" sparkle:deltaFromSparkleExecutableSize="860560" sparkle:deltaFromSparkleLocales="de,he,ar,el,ja,fa,uk" sparkle:edSignature="HViSuKIOF/DXrd9E1JTQvnD+UdREDAqjdjnJt6s55bodi/Qizr+t+cHXIRXOEt726s4luRsT+tWloFED5nZ8AQ=="/>
             </sparkle:deltas>
         </item>
     </channel>
