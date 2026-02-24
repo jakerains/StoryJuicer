@@ -3,6 +3,28 @@ import SwiftUI
 import AppKit
 #endif
 
+/// Simplified generation source: on-device Apple Intelligence or cloud via HuggingFace.
+private enum GenerationMode: String, CaseIterable, Identifiable {
+    case local
+    case cloud
+
+    var id: String { rawValue }
+
+    var displayName: String {
+        switch self {
+        case .local: "Local"
+        case .cloud: "Cloud"
+        }
+    }
+
+    var systemImage: String {
+        switch self {
+        case .local: "desktopcomputer"
+        case .cloud: "cloud"
+        }
+    }
+}
+
 struct MacCreationView: View {
     @Bindable var viewModel: CreationViewModel
     @Environment(\.supportsImagePlayground) private var supportsImagePlayground
@@ -12,6 +34,10 @@ struct MacCreationView: View {
     @State private var qaViewModel = StoryQAViewModel()
     @State private var showBookSetupPopover = false
     @State private var premiumState: PremiumState = PremiumStore.load()
+    @State private var generationMode: GenerationMode = {
+        let settings = ModelSelectionStore.load()
+        return settings.textProvider.isCloud ? .cloud : .local
+    }()
     @FocusState private var editorFocused: Bool
 
     private var isPremiumActive: Bool {
@@ -20,6 +46,10 @@ struct MacCreationView: View {
 
     private var isPremiumPlus: Bool {
         premiumState.tier == .premiumPlus
+    }
+
+    private var hasCloudCredential: Bool {
+        CloudCredentialStore.isAuthenticated(for: .huggingFace)
     }
 
     var body: some View {
@@ -169,6 +199,10 @@ struct MacCreationView: View {
 
             PaperTextureOverlay()
 
+            DriftingCloudsOverlay()
+                .opacity(generationMode == .cloud ? 1 : 0)
+                .animation(.easeIn(duration: 0.5), value: generationMode)
+
             RadialGradient(
                 colors: [Color.sjHighlight.opacity(0.24), .clear],
                 center: .topTrailing,
@@ -294,11 +328,52 @@ struct MacCreationView: View {
 
             if isPremiumActive {
                 premiumIndicatorPill
+            } else {
+                generationModePicker
+                    .fixedSize()
             }
 
             bookSetupRow
                 .fixedSize()
         }
+    }
+
+    private var generationModePicker: some View {
+        Picker("Mode", selection: $generationMode) {
+            ForEach(availableGenerationModes) { mode in
+                Label(mode.displayName, systemImage: mode.systemImage)
+                    .tag(mode)
+            }
+        }
+        .labelsHidden()
+        .pickerStyle(.menu)
+        .padding(.horizontal, StoryJuicerGlassTokens.Spacing.small + 2)
+        .padding(.vertical, StoryJuicerGlassTokens.Spacing.xSmall + 2)
+        .sjGlassChip(selected: false, interactive: true)
+        .onChange(of: generationMode) { _, newMode in
+            applyGenerationMode(newMode)
+        }
+    }
+
+    private var availableGenerationModes: [GenerationMode] {
+        var modes: [GenerationMode] = [.local]
+        if hasCloudCredential {
+            modes.append(.cloud)
+        }
+        return modes
+    }
+
+    private func applyGenerationMode(_ mode: GenerationMode) {
+        var settings = ModelSelectionStore.load()
+        switch mode {
+        case .local:
+            settings.textProvider = .appleFoundation
+            settings.imageProvider = .imagePlayground
+        case .cloud:
+            settings.textProvider = .huggingFace
+            settings.imageProvider = .huggingFace
+        }
+        ModelSelectionStore.save(settings)
     }
 
     private var premiumIndicatorPill: some View {
@@ -425,7 +500,7 @@ struct MacCreationView: View {
                     .font(.system(size: 14, weight: .semibold))
                     .foregroundStyle(Color.sjCoral)
 
-                Text("\(viewModel.pageCount) pages · \(viewModel.selectedFormat.displayName) · \(viewModel.selectedStyle.displayName)")
+                Text("\(viewModel.pageCount) pages · \(viewModel.selectedStyle.displayName)")
                     .font(StoryJuicerTypography.uiMetaStrong)
                     .foregroundStyle(Color.sjGlassInk)
 
@@ -450,17 +525,13 @@ struct MacCreationView: View {
         VStack(alignment: .leading, spacing: StoryJuicerGlassTokens.Spacing.medium) {
             SettingsSectionHeader(
                 title: "Book Setup",
-                subtitle: "Configure pages, format, and illustration style.",
+                subtitle: "Configure pages and illustration style.",
                 systemImage: "wand.and.stars"
             )
 
             panelDivider
 
             pageCountRow
-
-            panelDivider
-
-            formatPickerSection
 
             panelDivider
 
@@ -484,61 +555,25 @@ struct MacCreationView: View {
             .frame(height: 1)
     }
 
+    /// Even page counts from min to max (4, 6, 8, 10, 12, 14, 16).
+    private var pageCountOptions: [Int] {
+        stride(from: GenerationConfig.minPages, through: GenerationConfig.maxPages, by: 2).map { $0 }
+    }
+
     private var pageCountRow: some View {
         SettingsControlRow(
             title: "Page Count",
-            description: "Choose an even value from \(GenerationConfig.minPages) to \(GenerationConfig.maxPages)."
+            description: "Choose how many pages your storybook will have."
         ) {
-            Stepper(
-                value: $viewModel.pageCount,
-                in: GenerationConfig.minPages...GenerationConfig.maxPages,
-                step: 2
-            ) {
-                Text("\(viewModel.pageCount) pages")
-                    .font(StoryJuicerTypography.settingsControl)
-                    .foregroundStyle(Color.sjText)
-            }
-            .frame(width: 210)
-            .padding(.horizontal, StoryJuicerGlassTokens.Spacing.small)
-            .padding(.vertical, StoryJuicerGlassTokens.Spacing.xSmall + 2)
-            .background(Color.sjReadableCard.opacity(0.85), in: .rect(cornerRadius: StoryJuicerGlassTokens.Radius.input))
-            .overlay {
-                RoundedRectangle(cornerRadius: StoryJuicerGlassTokens.Radius.input)
-                    .strokeBorder(Color.sjBorder.opacity(0.8), lineWidth: 1)
-            }
-            .tint(.sjCoral)
-        }
-    }
-
-    private var formatPickerSection: some View {
-        VStack(alignment: .leading, spacing: StoryJuicerGlassTokens.Spacing.medium) {
-            SettingsSectionHeader(
-                title: "Book Format",
-                subtitle: "Pick page proportions for reading and PDF export.",
-                systemImage: "rectangle.portrait.on.rectangle.portrait"
-            )
-
-            GlassEffectContainer(spacing: StoryJuicerGlassTokens.Spacing.small) {
-                LazyVGrid(
-                    columns: [GridItem(.adaptive(minimum: 145, maximum: 220), spacing: StoryJuicerGlassTokens.Spacing.small)],
-                    spacing: StoryJuicerGlassTokens.Spacing.small
-                ) {
-                    ForEach(BookFormat.allCases) { format in
-                        Button {
-                            withAnimation(StoryJuicerMotion.standard) {
-                                viewModel.selectedFormat = format
-                            }
-                        } label: {
-                            FormatPreviewCard(
-                                format: format,
-                                isSelected: viewModel.selectedFormat == format
-                            )
-                        }
-                        .buttonStyle(.plain)
-                        .accessibilityLabel("Book format \(format.displayName)")
-                    }
+            Picker("Page Count", selection: $viewModel.pageCount) {
+                ForEach(pageCountOptions, id: \.self) { count in
+                    Text("\(count) pages").tag(count)
                 }
             }
+            .labelsHidden()
+            .pickerStyle(.menu)
+            .settingsFieldChrome()
+            .frame(width: 160)
         }
     }
 
@@ -575,6 +610,7 @@ struct MacCreationView: View {
                     }
                 }
             }
+            .frame(maxWidth: .infinity)
         }
     }
 
@@ -646,4 +682,198 @@ struct SparkleData {
     let duration: Double
     var rotates: Bool = false
     var opacity: Double = 0.8
+}
+
+// MARK: - Drifting Clouds Background
+
+/// Layered parallax clouds that drift when Cloud mode is active.
+/// Three depth lanes — far (small, slow, faint), mid, near (large, faster, brighter).
+private struct DriftingCloudsOverlay: View {
+    @State private var drift = false
+
+    // Each cloud: depth lane, shape variant, vertical position, scale, opacity, speed (seconds), start fraction (0 = off-screen left, 0.5 = mid-screen)
+    private struct CloudSpec: Identifiable {
+        let id: Int
+        let lane: DepthLane
+        let shape: Int          // 0, 1, or 2 — picks shape variant
+        let yFraction: CGFloat
+        let scale: CGFloat
+        let speed: Double
+        let startFraction: CGFloat // where the cloud begins (0 = left edge, negative = off-screen)
+    }
+
+    private enum DepthLane {
+        case far, mid, near
+
+        var opacity: Double {
+            switch self {
+            case .far:  0.06
+            case .mid:  0.09
+            case .near: 0.13
+            }
+        }
+
+        var blur: CGFloat {
+            switch self {
+            case .far:  3.0
+            case .mid:  1.5
+            case .near: 0.5
+            }
+        }
+    }
+
+    private static let clouds: [CloudSpec] = [
+        // Far lane — small, slow, hazy
+        CloudSpec(id: 0,  lane: .far, shape: 0, yFraction: 0.08, scale: 0.5,  speed: 90, startFraction: 0.2),
+        CloudSpec(id: 1,  lane: .far, shape: 1, yFraction: 0.28, scale: 0.45, speed: 100, startFraction: 0.65),
+        CloudSpec(id: 2,  lane: .far, shape: 2, yFraction: 0.62, scale: 0.4,  speed: 95, startFraction: -0.1),
+        CloudSpec(id: 3,  lane: .far, shape: 0, yFraction: 0.85, scale: 0.35, speed: 105, startFraction: 0.45),
+        // Mid lane — medium
+        CloudSpec(id: 4,  lane: .mid, shape: 1, yFraction: 0.15, scale: 0.75, speed: 65, startFraction: 0.4),
+        CloudSpec(id: 5,  lane: .mid, shape: 2, yFraction: 0.40, scale: 0.65, speed: 70, startFraction: -0.15),
+        CloudSpec(id: 6,  lane: .mid, shape: 0, yFraction: 0.70, scale: 0.7,  speed: 60, startFraction: 0.55),
+        CloudSpec(id: 7,  lane: .mid, shape: 1, yFraction: 0.52, scale: 0.6,  speed: 75, startFraction: 0.1),
+        // Near lane — large, brighter, faster
+        CloudSpec(id: 8,  lane: .near, shape: 2, yFraction: 0.05, scale: 1.1,  speed: 42, startFraction: 0.3),
+        CloudSpec(id: 9,  lane: .near, shape: 0, yFraction: 0.35, scale: 0.95, speed: 48, startFraction: -0.2),
+        CloudSpec(id: 10, lane: .near, shape: 1, yFraction: 0.68, scale: 1.0,  speed: 45, startFraction: 0.6),
+        CloudSpec(id: 11, lane: .near, shape: 2, yFraction: 0.88, scale: 0.85, speed: 50, startFraction: 0.05),
+    ]
+
+    var body: some View {
+        GeometryReader { geo in
+            ForEach(Self.clouds) { cloud in
+                singleCloud(cloud: cloud, geoSize: geo.size)
+            }
+        }
+        .clipped()
+        .drawingGroup()
+        .onAppear { drift = true }
+    }
+
+    private func singleCloud(cloud: CloudSpec, geoSize: CGSize) -> some View {
+        let cloudWidth: CGFloat = 180 * cloud.scale
+        let cloudHeight: CGFloat = 70 * cloud.scale
+        let startX: CGFloat = geoSize.width * cloud.startFraction - 200
+        let endX: CGFloat = geoSize.width + 200
+        let yPos: CGFloat = geoSize.height * cloud.yFraction
+        let fillColor = Color.white.opacity(cloud.lane.opacity)
+
+        return cloudFilled(variant: cloud.shape, color: fillColor)
+            .frame(width: cloudWidth, height: cloudHeight)
+            .blur(radius: cloud.lane.blur)
+            .offset(x: drift ? endX : startX, y: yPos)
+            .animation(
+                .linear(duration: cloud.speed)
+                    .repeatForever(autoreverses: false),
+                value: drift
+            )
+    }
+
+    @ViewBuilder
+    private func cloudFilled(variant: Int, color: Color) -> some View {
+        switch variant {
+        case 1:  FluffyCloudShape2().fill(color)
+        case 2:  FluffyCloudShape3().fill(color)
+        default: FluffyCloudShape1().fill(color)
+        }
+    }
+}
+
+// MARK: - Cloud Shape Variants (smooth continuous bezier outlines)
+
+/// Cumulus cloud — 3 rounded bumps, tallest in the center, flat base.
+private struct FluffyCloudShape1: Shape {
+    func path(in rect: CGRect) -> Path {
+        let w = rect.width, h = rect.height
+        var p = Path()
+        // Start bottom-left, trace clockwise
+        p.move(to: pt(0.06, 0.82, w, h))
+        // Left edge curves up
+        p.addQuadCurve(to: pt(0.10, 0.55, w, h), control: pt(0.02, 0.68, w, h))
+        // Left bump
+        p.addCurve(to: pt(0.30, 0.32, w, h),
+                    control1: pt(0.10, 0.38, w, h), control2: pt(0.18, 0.28, w, h))
+        // Valley between left and center
+        p.addQuadCurve(to: pt(0.38, 0.35, w, h), control: pt(0.34, 0.34, w, h))
+        // Center dome (tallest)
+        p.addCurve(to: pt(0.62, 0.12, w, h),
+                    control1: pt(0.38, 0.18, w, h), control2: pt(0.48, 0.08, w, h))
+        // Valley between center and right
+        p.addCurve(to: pt(0.72, 0.30, w, h),
+                    control1: pt(0.70, 0.12, w, h), control2: pt(0.72, 0.22, w, h))
+        // Right bump
+        p.addCurve(to: pt(0.90, 0.50, w, h),
+                    control1: pt(0.72, 0.38, w, h), control2: pt(0.82, 0.34, w, h))
+        // Right edge curves down
+        p.addQuadCurve(to: pt(0.94, 0.82, w, h), control: pt(0.98, 0.62, w, h))
+        // Flat base
+        p.addLine(to: pt(0.06, 0.82, w, h))
+        p.closeSubpath()
+        return p
+    }
+}
+
+/// Wide stratus cloud — 4 gentle undulations, low and broad.
+private struct FluffyCloudShape2: Shape {
+    func path(in rect: CGRect) -> Path {
+        let w = rect.width, h = rect.height
+        var p = Path()
+        p.move(to: pt(0.04, 0.85, w, h))
+        // Left rise
+        p.addQuadCurve(to: pt(0.10, 0.52, w, h), control: pt(0.01, 0.65, w, h))
+        // Bump 1 (small left)
+        p.addCurve(to: pt(0.24, 0.38, w, h),
+                    control1: pt(0.10, 0.40, w, h), control2: pt(0.16, 0.34, w, h))
+        // Bump 2 (left-center)
+        p.addCurve(to: pt(0.42, 0.22, w, h),
+                    control1: pt(0.30, 0.40, w, h), control2: pt(0.34, 0.22, w, h))
+        // Bump 3 (right-center, tallest)
+        p.addCurve(to: pt(0.65, 0.18, w, h),
+                    control1: pt(0.48, 0.22, w, h), control2: pt(0.56, 0.12, w, h))
+        // Bump 4 (small right)
+        p.addCurve(to: pt(0.82, 0.38, w, h),
+                    control1: pt(0.72, 0.22, w, h), control2: pt(0.78, 0.30, w, h))
+        // Right descent
+        p.addQuadCurve(to: pt(0.96, 0.85, w, h), control: pt(0.96, 0.55, w, h))
+        // Flat base
+        p.addLine(to: pt(0.04, 0.85, w, h))
+        p.closeSubpath()
+        return p
+    }
+}
+
+/// Puffy asymmetric cloud — big dome on the right, smaller bumps on the left.
+private struct FluffyCloudShape3: Shape {
+    func path(in rect: CGRect) -> Path {
+        let w = rect.width, h = rect.height
+        var p = Path()
+        p.move(to: pt(0.05, 0.80, w, h))
+        // Left edge
+        p.addQuadCurve(to: pt(0.12, 0.50, w, h), control: pt(0.02, 0.62, w, h))
+        // Small left bump
+        p.addCurve(to: pt(0.26, 0.36, w, h),
+                    control1: pt(0.12, 0.38, w, h), control2: pt(0.18, 0.32, w, h))
+        // Dip
+        p.addQuadCurve(to: pt(0.34, 0.40, w, h), control: pt(0.30, 0.38, w, h))
+        // Medium bump
+        p.addCurve(to: pt(0.50, 0.22, w, h),
+                    control1: pt(0.36, 0.28, w, h), control2: pt(0.42, 0.18, w, h))
+        // Big right dome
+        p.addCurve(to: pt(0.78, 0.10, w, h),
+                    control1: pt(0.56, 0.22, w, h), control2: pt(0.65, 0.06, w, h))
+        // Right descent
+        p.addCurve(to: pt(0.95, 0.55, w, h),
+                    control1: pt(0.90, 0.10, w, h), control2: pt(0.95, 0.35, w, h))
+        p.addQuadCurve(to: pt(0.95, 0.80, w, h), control: pt(0.98, 0.70, w, h))
+        // Flat base
+        p.addLine(to: pt(0.05, 0.80, w, h))
+        p.closeSubpath()
+        return p
+    }
+}
+
+/// Helper to convert fractional coordinates to a CGPoint.
+private func pt(_ xf: CGFloat, _ yf: CGFloat, _ w: CGFloat, _ h: CGFloat) -> CGPoint {
+    CGPoint(x: w * xf, y: h * yf)
 }

@@ -19,6 +19,8 @@ struct MacBookReaderView: View {
 
     @State private var activeSheet: ReaderSheet?
     @State private var pageTurnState = PageTurnState()
+    @State private var isCoverHovered = false
+    @State private var coverHoverVector: CGSize = .zero
 
     var body: some View {
         ZStack {
@@ -146,6 +148,13 @@ struct MacBookReaderView: View {
                 viewModel.commitPageChange(to: pageTurnState.toPage)
             }
         }
+        .onChange(of: pageTurnState.isTurning) { _, isTurning in
+            guard isTurning else { return }
+            withAnimation(StoryJuicerMotion.fast) {
+                isCoverHovered = false
+                coverHoverVector = .zero
+            }
+        }
     }
 
     private var backgroundLayer: some View {
@@ -193,10 +202,11 @@ struct MacBookReaderView: View {
             pageContent(for: pageIndex)
         }
         .frame(maxWidth: 780)
-        .frame(maxWidth: .infinity, maxHeight: .infinity)
+        .aspectRatio(viewModel.format.aspectRatio, contentMode: .fit)
         .clipShape(.rect(cornerRadius: StoryJuicerGlassTokens.Radius.hero))
         // Cover gets a heavier shadow to feel like a thick hardcover book
         .shadow(color: .black.opacity(isCover ? 0.25 : 0.08), radius: isCover ? 20 : 8, y: isCover ? 8 : 4)
+        .frame(maxWidth: .infinity, maxHeight: .infinity)
     }
 
     /// The opaque paper background for a single book page card.
@@ -220,82 +230,35 @@ struct MacBookReaderView: View {
     private var titlePage: some View {
         ZStack {
             if let coverImage = viewModel.images[0] {
-                // Layer 1: Full-bleed cover illustration
-                Image(decorative: coverImage, scale: 1.0)
-                    .resizable()
-                    .scaledToFill()
-                    .frame(maxWidth: .infinity, maxHeight: .infinity)
-                    .clipped()
-
-                // Layer 2: Vignette — darkened edges simulate a curved hardcover surface
-                RadialGradient(
-                    colors: [.clear, .black.opacity(0.35)],
-                    center: .center,
-                    startRadius: 100,
-                    endRadius: 500
-                )
-                .blendMode(.multiply)
-
-                // Layer 3: Spine strip — narrow dark gradient on the leading edge
-                // simulating the bound spine where pages meet the cover
-                HStack(spacing: 0) {
-                    LinearGradient(
-                        colors: [.black.opacity(0.45), .black.opacity(0.15), .clear],
-                        startPoint: .leading,
-                        endPoint: .trailing
+                GeometryReader { proxy in
+                    BookCover3D(
+                        image: coverImage,
+                        title: viewModel.storyBook.title,
+                        authorLine: viewModel.storyBook.authorLine,
+                        cornerRadius: StoryJuicerGlassTokens.Radius.hero,
+                        isInteractive: !pageTurnState.isTurning,
+                        isHovered: isCoverHovered,
+                        hoverVector: coverHoverVector,
+                        showsTextOverlay: true
                     )
-                    .frame(width: 20)
-                    Spacer()
-                }
-
-                // Layer 4: Top-edge highlight — light catching the top of a hardcover
-                VStack(spacing: 0) {
-                    LinearGradient(
-                        colors: [.white.opacity(0.15), .clear],
-                        startPoint: .top,
-                        endPoint: .bottom
-                    )
-                    .frame(height: 12)
-                    Spacer()
-                }
-
-                // Layer 5: Bottom scrim — stronger gradient for title legibility
-                VStack {
-                    Spacer()
-                    LinearGradient(
-                        colors: [.clear, .black.opacity(0.65)],
-                        startPoint: .top,
-                        endPoint: .bottom
-                    )
-                    .frame(height: 300)
-                }
-
-                // Layer 6–7: Title and author with embossed shadow treatment
-                VStack {
-                    Spacer()
-                    VStack(spacing: 8) {
-                        Text(viewModel.storyBook.title)
-                            .font(.system(size: 44, weight: .bold, design: .serif))
-                            .foregroundStyle(.white)
-                            .multilineTextAlignment(.center)
-                            .shadow(color: .black.opacity(0.8), radius: 1, y: 2)
-                            .shadow(color: .black.opacity(0.3), radius: 8, y: 4)
-
-                        Text(viewModel.storyBook.authorLine)
-                            .font(.system(.title3, design: .rounded).weight(.medium))
-                            .foregroundStyle(.white.opacity(0.9))
-                            .italic()
-                            .shadow(color: .black.opacity(0.6), radius: 1, y: 1)
-                            .shadow(color: .black.opacity(0.25), radius: 6, y: 3)
+                    .padding(.vertical, 6)
+                    .onContinuousHover(coordinateSpace: .local) { phase in
+                        guard !pageTurnState.isTurning else { return }
+                        switch phase {
+                        case .active(let location):
+                            let vector = normalizedHoverVector(location: location, in: proxy.size)
+                            withAnimation(.interactiveSpring(response: 0.2, dampingFraction: 0.86)) {
+                                isCoverHovered = true
+                                coverHoverVector = vector
+                            }
+                        case .ended:
+                            withAnimation(.interactiveSpring(response: 0.22, dampingFraction: 0.88)) {
+                                isCoverHovered = false
+                                coverHoverVector = .zero
+                            }
+                        }
                     }
-                    .padding(.horizontal, 44)
-                    .padding(.bottom, 40)
                 }
-
-                // Layer 8: Decorative gold foil border — like a hardcover book frame
-                RoundedRectangle(cornerRadius: StoryJuicerGlassTokens.Radius.hero - 4)
-                    .strokeBorder(Color.sjGold.opacity(0.4), lineWidth: 1.5)
-                    .padding(16)
             } else {
                 coverPlaceholder
                     .padding(StoryJuicerGlassTokens.Spacing.large)
@@ -413,7 +376,7 @@ struct MacBookReaderView: View {
                         .frame(maxWidth: 420)
                     if alignLeft { Spacer(minLength: StoryJuicerGlassTokens.Spacing.xLarge) }
                 }
-                .padding(.horizontal, StoryJuicerGlassTokens.Spacing.medium)
+                .padding(.horizontal, 40)
                 .padding(.bottom, StoryJuicerGlassTokens.Spacing.large)
             }
             .frame(maxWidth: .infinity, maxHeight: .infinity)
@@ -708,5 +671,15 @@ struct MacBookReaderView: View {
             return "Go to ending page"
         }
         return "Go to page \(index)"
+    }
+
+    private func normalizedHoverVector(location: CGPoint, in size: CGSize) -> CGSize {
+        guard size.width > 1, size.height > 1 else { return .zero }
+        let normalizedX = ((location.x / size.width) * 2) - 1
+        let normalizedY = ((location.y / size.height) * 2) - 1
+        return CGSize(
+            width: min(max(normalizedX, -1), 1),
+            height: min(max(normalizedY, -1), 1)
+        )
     }
 }

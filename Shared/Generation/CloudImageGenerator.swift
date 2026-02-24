@@ -312,29 +312,16 @@ struct CloudImageGenerator: StoryImageGenerating {
             : modelID
     }
 
-    /// Maps `BookFormat` to image generation dimensions.
+    /// All image generation uses square output. The reader view handles visual
+    /// fitting via `scaledToFill().clipped()` for non-square page layouts.
     private func imageDimensions(for format: BookFormat) -> (width: Int, height: Int) {
-        switch format {
-        case .standard, .small:
-            return (1024, 1024)
-        case .landscape:
-            return (1792, 1024)
-        case .portrait:
-            return (1024, 1792)
-        }
+        (1024, 1024)
     }
 
-    /// Maps `BookFormat` to OpenAI's supported image size strings.
-    /// OpenAI supports: 1024x1024, 1536x1024 (landscape), 1024x1536 (portrait).
+    /// All image generation uses square output — matches Image Playground's
+    /// fixed square output so every provider behaves consistently.
     private func openAISize(for format: BookFormat) -> String {
-        switch format {
-        case .standard, .small:
-            return "1024x1024"
-        case .landscape:
-            return "1536x1024"
-        case .portrait:
-            return "1024x1536"
-        }
+        "1024x1024"
     }
 
     /// Appends a style-descriptive suffix to the prompt for the diffusion model.

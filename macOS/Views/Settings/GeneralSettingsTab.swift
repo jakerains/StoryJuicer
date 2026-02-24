@@ -3,6 +3,10 @@ import SwiftUI
 struct GeneralSettingsTab: View {
     @Binding var settings: ModelSelectionSettings
 
+    private var hasOpenRouterKey: Bool {
+        CloudCredentialStore.isAuthenticated(for: .openRouter)
+    }
+
     var body: some View {
         VStack(alignment: .leading, spacing: StoryJuicerGlassTokens.Spacing.xLarge) {
             providerSection
@@ -25,7 +29,7 @@ struct GeneralSettingsTab: View {
                 description: "Engine used for writing stories."
             ) {
                 Picker("Text Provider", selection: $settings.textProvider) {
-                    ForEach(StoryTextProvider.allCases.filter { $0 != .togetherAI }) { provider in
+                    ForEach(StoryTextProvider.allCases.filter { $0 != .togetherAI && $0 != .openAI && $0 != .mlxSwift && ($0 != .openRouter || hasOpenRouterKey) }) { provider in
                         Text(provider.displayName).tag(provider)
                     }
                 }
@@ -40,7 +44,7 @@ struct GeneralSettingsTab: View {
                 description: "Engine used for generating illustrations."
             ) {
                 Picker("Image Provider", selection: $settings.imageProvider) {
-                    ForEach(StoryImageProvider.allCases.filter { $0 != .diffusers && $0 != .togetherAI }) { provider in
+                    ForEach(StoryImageProvider.allCases.filter { $0 != .diffusers && $0 != .togetherAI && $0 != .openAI && ($0 != .openRouter || hasOpenRouterKey) }) { provider in
                         Text(provider.displayName).tag(provider)
                     }
                 }

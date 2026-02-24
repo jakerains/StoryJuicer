@@ -116,7 +116,7 @@ struct MLXStoryGenerator: StoryTextGenerating, Sendable {
 
         let pass1LMInput = try await container.prepare(input: pass1Input)
         let pass1Params = GenerateParameters(
-            maxTokens: GenerationConfig.maximumResponseTokens(for: pageCount),
+            maxTokens: GenerationConfig.mlxTokens(for: pageCount),
             temperature: Float(GenerationConfig.defaultTemperature)
         )
 
@@ -182,7 +182,7 @@ struct MLXStoryGenerator: StoryTextGenerating, Sendable {
 
         let pass2LMInput = try await container.prepare(input: pass2Input)
         let pass2Params = GenerateParameters(
-            maxTokens: 600,
+            maxTokens: GenerationConfig.mlxTokens(for: pageCount),
             temperature: Float(GenerationConfig.defaultTemperature)
         )
 

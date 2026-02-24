@@ -5,7 +5,6 @@ import { HowItWorks } from "@/components/HowItWorks";
 import { Features } from "@/components/Features";
 import { HuggingFaceSection } from "@/components/HuggingFaceSection";
 import { StylesShowcase } from "@/components/StylesShowcase";
-import { BookFormats } from "@/components/BookFormats";
 import { Requirements } from "@/components/Requirements";
 import { SafetyDisclaimer } from "@/components/SafetyDisclaimer";
 import { Footer } from "@/components/Footer";
@@ -52,7 +51,6 @@ export default function Page() {
           <Features />
           <HuggingFaceSection />
           <StylesShowcase />
-          <BookFormats />
           <Requirements />
           <SafetyDisclaimer />
         </div>

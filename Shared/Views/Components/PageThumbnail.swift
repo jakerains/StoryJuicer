@@ -5,6 +5,7 @@ struct PageThumbnail: View {
     let pageNumber: Int
     let image: CGImage?
     let isGenerating: Bool
+    var isCover: Bool = false
     var isSelected: Bool = false
     var aspectRatio: CGFloat = 1.0
     var onRegenerate: (() -> Void)? = nil
@@ -12,16 +13,29 @@ struct PageThumbnail: View {
     var body: some View {
         ZStack {
             if let image {
-                Image(decorative: image, scale: 1.0)
-                    .resizable()
-                    .scaledToFill()
-                    .overlay {
-                        LinearGradient(
-                            colors: [.clear, Color.black.opacity(0.18)],
-                            startPoint: .center,
-                            endPoint: .bottom
-                        )
-                    }
+                if isCover {
+                    BookCover3D(
+                        image: image,
+                        title: "",
+                        authorLine: "",
+                        cornerRadius: StoryJuicerGlassTokens.Radius.thumbnail,
+                        isInteractive: false,
+                        isHovered: false,
+                        hoverVector: .zero,
+                        showsTextOverlay: false
+                    )
+                } else {
+                    Image(decorative: image, scale: 1.0)
+                        .resizable()
+                        .scaledToFill()
+                        .overlay {
+                            LinearGradient(
+                                colors: [.clear, Color.black.opacity(0.18)],
+                                startPoint: .center,
+                                endPoint: .bottom
+                            )
+                        }
+                }
             } else if isGenerating {
                 VStack(spacing: StoryJuicerGlassTokens.Spacing.xSmall) {
                     ProgressView()

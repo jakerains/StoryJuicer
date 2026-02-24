@@ -110,7 +110,7 @@ final class StoryGenerator {
 
         let textOptions = GenerationOptions(
             temperature: Double(GenerationConfig.defaultTemperature),
-            maximumResponseTokens: GenerationConfig.maximumResponseTokens(for: pageCount)
+            maximumResponseTokens: GenerationConfig.foundationModelTokens(for: pageCount)
         )
 
         let pass1Clock = ContinuousClock()
@@ -160,44 +160,67 @@ final class StoryGenerator {
         )
 
         let pass2System = "You are an art director for a children's storybook illustration team."
-        let artSession = LanguageModelSession(
-            instructions: pass2System
-        )
-
         let promptOptions = GenerationOptions(
             temperature: Double(GenerationConfig.defaultTemperature),
-            maximumResponseTokens: 600
+            maximumResponseTokens: GenerationConfig.foundationModelImagePromptTokens(for: pageCount)
         )
 
         let pass2Clock = ContinuousClock()
         let pass2Start = pass2Clock.now
 
-        let promptResponse = try await artSession.respond(
-            to: imagePromptPrompt,
-            generating: ImagePromptSheet.self,
-            options: promptOptions
-        )
+        // Try structured generation with retry, fall back to synthesized prompts
+        var promptSheet: ImagePromptSheet?
+        for attempt in 0...1 {
+            do {
+                let artSession = LanguageModelSession(instructions: pass2System)
+                let promptResponse = try await artSession.respond(
+                    to: imagePromptPrompt,
+                    generating: ImagePromptSheet.self,
+                    options: promptOptions
+                )
+                promptSheet = promptResponse.content
+                break
+            } catch {
+                if attempt == 0 {
+                    state = .generating(partialText: "Hmm, let's sketch those illustrations again...")
+                    onProgress("Hmm, let's sketch those illustrations again...")
+                    try await Task.sleep(for: .milliseconds(500))
+                }
+            }
+        }
 
-        let promptSheet = promptResponse.content
+        // If structured generation failed twice, synthesize prompts from story text
+        let finalPrompts: [PageImagePrompt]
+        if let sheet = promptSheet {
+            finalPrompts = sheet.prompts
+        } else {
+            finalPrompts = textOnly.pages.map { page in
+                let description = textOnly.characterDescriptions.isEmpty
+                    ? ""
+                    : " Characters: \(textOnly.characterDescriptions)."
+                let synthesized = "A children's book illustration of: \(page.text)\(description) Warm, gentle, colorful scene."
+                return PageImagePrompt(pageNumber: page.pageNumber, imagePrompt: synthesized)
+            }
+        }
 
         let pass2Duration = pass2Start.duration(to: pass2Clock.now)
         let pass2Seconds = Double(pass2Duration.components.seconds) + Double(pass2Duration.components.attoseconds) / 1e18
 
         // Log Pass 2
-        let pass2ResponseSummary = promptSheet.prompts.map { "Page \($0.pageNumber): \($0.imagePrompt)" }.joined(separator: "\n")
+        let pass2ResponseSummary = finalPrompts.map { "Page \($0.pageNumber): \($0.imagePrompt)" }.joined(separator: "\n")
         await VerboseGenerationLogger.shared.logTextPass(
             sessionID: verboseSession,
             passLabel: "Pass 2: Image Prompts (Foundation Models)",
             provider: "Apple Foundation Models", model: "on-device",
             systemPrompt: pass2System, userPrompt: imagePromptPrompt,
             rawResponse: pass2ResponseSummary,
-            parseSuccess: true,
+            parseSuccess: promptSheet != nil,
             duration: pass2Seconds
         )
 
         // ── Merge text + prompts into a StoryBook ──
         let promptsByPage = Dictionary(
-            promptSheet.prompts.map { ($0.pageNumber, $0.imagePrompt) },
+            finalPrompts.map { ($0.pageNumber, $0.imagePrompt) },
             uniquingKeysWith: { _, last in last }
         )
 

@@ -1863,7 +1863,7 @@ struct MacTestHarnessView: View {
         let safeConcept = ContentSafetyPolicy.sanitizeConcept(baselineConcept)
         let options = GenerationOptions(
             temperature: Double(GenerationConfig.defaultTemperature),
-            maximumResponseTokens: GenerationConfig.maximumResponseTokens(for: testPageCount)
+            maximumResponseTokens: GenerationConfig.foundationModelTokens(for: testPageCount)
         )
 
         // Pass 1: Generate text only

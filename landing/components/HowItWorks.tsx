@@ -16,7 +16,7 @@ const steps = [
   {
     number: 2,
     title: "Customize",
-    description: "Pick page count, book format, and illustration style",
+    description: "Pick page count and illustration style",
     image: "/images/step-customize.png",
     color: "var(--sj-gold)",
   },

@@ -88,12 +88,10 @@ struct DebugSettingsTab: View {
         }
     }
 
-    /// Providers that have a saved API key or use the proxy.
+    /// All non-proxy providers — always shown so test buttons are accessible.
+    /// Each test row handles missing credentials with its own "No API key" message.
     private var activeCloudProviders: [CloudProvider] {
-        CloudProvider.allCases.filter { provider in
-            if provider.usesProxy { return false }  // Premium proxy is tested above
-            return CloudCredentialStore.bearerToken(for: provider) != nil
-        }
+        CloudProvider.allCases.filter { !$0.usesProxy }
     }
 
     // MARK: - Diagnostics
@@ -500,13 +498,27 @@ private struct CloudProviderTestGroup: View {
         }
     }
 
+    /// Resolves a bearer token from CloudCredentialStore or HFTokenStore.
+    private func resolvedBearerToken() -> String? {
+        if let token = CloudCredentialStore.bearerToken(for: provider) {
+            return token
+        }
+        if provider == .huggingFace {
+            let alias = settings.resolvedHFTokenAlias
+            if let token = HFTokenStore.loadToken(alias: alias), !token.isEmpty {
+                return token
+            }
+        }
+        return nil
+    }
+
     // MARK: - Test Connection
 
     private func testConnection() async {
         isTesting = true
         testResult = ""
 
-        guard let apiKey = CloudCredentialStore.bearerToken(for: provider) else {
+        guard let apiKey = resolvedBearerToken() else {
             testResult = "No API key configured."
             isTesting = false
             return
@@ -561,7 +573,7 @@ private struct CloudProviderTestGroup: View {
         isTestingText = true
         textTestResult = ""
 
-        guard let apiKey = CloudCredentialStore.bearerToken(for: provider) else {
+        guard let apiKey = resolvedBearerToken() else {
             textTestResult = "No API key configured."
             isTestingText = false
             return
@@ -633,7 +645,7 @@ private struct CloudProviderTestGroup: View {
         isTestingImage = true
         imageTestResult = ""
 
-        guard let apiKey = CloudCredentialStore.bearerToken(for: provider) else {
+        guard let apiKey = resolvedBearerToken() else {
             imageTestResult = "No API key configured."
             isTestingImage = false
             return

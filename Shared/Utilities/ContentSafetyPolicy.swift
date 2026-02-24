@@ -133,14 +133,17 @@ struct ContentSafetyPolicy: Sendable {
     }
 
     static func safeCoverPrompt(title: String, concept: String) -> String {
-        let safeTitle = sanitizeConcept(title)
         let safeConcept = sanitizeConcept(concept)
-        // Short descriptive phrase — no instructions for the diffusion model.
-        return "\(safeTitle) book cover, \(safeConcept), warm whimsical colors, friendly characters"
+        // Describe a scene, NOT a "cover" — saying "cover" cues diffusion models
+        // to render title text because real book covers always have titles.
+        // We overlay title text ourselves after generation.
+        return "Children's storybook illustration, \(safeConcept), warm whimsical colors, friendly characters, no text, no words, no letters, no writing, text-free"
     }
 
-    static func safeIllustrationPrompt(_ prompt: String, extendedLimit: Bool = false) -> String {
-        var sanitized = sanitizeConcept(prompt)
+    static func safeIllustrationPrompt(_ prompt: String, extendedLimit: Bool = false, maxLength: Int? = nil) -> String {
+        // Use a generous initial sanitization limit so we don't truncate before applying rules.
+        let sanitizeLimit = maxLength ?? (extendedLimit ? 900 : 220)
+        var sanitized = sanitizeConcept(prompt, maxLength: sanitizeLimit)
 
         for rule in illustrationPromptReplacements {
             sanitized = sanitized.replacingOccurrences(
@@ -150,10 +153,17 @@ struct ContentSafetyPolicy: Sendable {
             )
         }
 
-        // Keep prompts short and purely descriptive for Image Playground.
-        // Extended limit (300) accommodates character description prefix (~120 chars)
-        // plus scene description (~180 chars).
-        let limit = extendedLimit ? 300 : 180
+        // Append no-text directive — diffusion models sometimes render garbled text
+        // when prompts describe scenes with signs, titles, or written words.
+        if !sanitized.lowercased().contains("no text") {
+            sanitized += ". No text, words, or lettering"
+        }
+
+        // Final length cap.
+        // Image Playground: 200 (short, purely descriptive).
+        // Extended (IP with character prefix): 320.
+        // Cloud (custom maxLength): caller-specified, defaults to 1000.
+        let limit = maxLength ?? (extendedLimit ? 320 : 200)
         if sanitized.count > limit {
             sanitized = String(sanitized.prefix(limit))
         }

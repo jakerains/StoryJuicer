@@ -14,7 +14,8 @@ struct OnDeviceSettingsTab: View {
     var body: some View {
         VStack(alignment: .leading, spacing: StoryJuicerGlassTokens.Spacing.xLarge) {
             foundationModelSection
-            mlxModelSection
+            // MLX section hidden — models don't work well yet.
+            // Re-enable by uncommenting: mlxModelSection
         }
     }
 

@@ -66,11 +66,16 @@ struct ImagePlaygroundImageGenerator: StoryImageGenerating {
         return try await withTimeout(
             seconds: GenerationConfig.imagePlaygroundGenerationTimeoutSeconds
         ) {
+            let promptWithLayoutDirective = self.applyLayoutDirective(to: prompt, format: format)
             let concepts: [ImagePlaygroundConcept]
             if let ranked = rankedConcepts, !ranked.isEmpty {
-                concepts = self.conceptsFromRanked(ranked, referenceImage: referenceImage)
+                concepts = self.conceptsFromRanked(
+                    ranked,
+                    format: format,
+                    referenceImage: referenceImage
+                )
             } else {
-                concepts = self.imageConcepts(for: prompt, referenceImage: referenceImage)
+                concepts = self.imageConcepts(for: promptWithLayoutDirective, referenceImage: referenceImage)
             }
 
             let images = creator.images(
@@ -113,6 +118,7 @@ struct ImagePlaygroundImageGenerator: StoryImageGenerating {
     /// proven to improve adherence to specific details like breed/species.
     private func conceptsFromRanked(
         _ ranked: [RankedImageConcept],
+        format: BookFormat,
         referenceImage: CGImage? = nil
     ) -> [ImagePlaygroundConcept] {
         var concepts: [ImagePlaygroundConcept] = []
@@ -120,6 +126,10 @@ struct ImagePlaygroundImageGenerator: StoryImageGenerating {
         for rc in ranked {
             let text = "\(rc.label): \(rc.value)"
             concepts.append(.text(text))
+        }
+
+        if let layoutDirective = layoutDirective(for: format) {
+            concepts.append(.text(layoutDirective))
         }
 
         if let ref = referenceImage {
@@ -148,6 +158,24 @@ struct ImagePlaygroundImageGenerator: StoryImageGenerating {
         }
 
         return concepts
+    }
+
+    /// Image Playground commonly returns square outputs; this directive nudges composition
+    /// so post-generation aspect normalization yields better landscape/portrait framing.
+    private func applyLayoutDirective(to prompt: String, format: BookFormat) -> String {
+        guard let directive = layoutDirective(for: format) else { return prompt }
+        return prompt + " " + directive
+    }
+
+    private func layoutDirective(for format: BookFormat) -> String? {
+        switch format {
+        case .landscape:
+            return "Use a wide horizontal composition with important subjects centered and extra space on the left and right."
+        case .portrait:
+            return "Use a tall vertical composition with important subjects centered and extra space above and below."
+        case .standard, .small:
+            return nil
+        }
     }
 }
 

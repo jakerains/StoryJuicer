@@ -21,6 +21,27 @@ struct StoryDTO: Decodable {
     let characterDescriptions: String?
     let pages: [StoryPageDTO]
 
+    init(from decoder: Decoder) throws {
+        let container = try decoder.container(keyedBy: CodingKeys.self)
+        title = try container.decode(String.self, forKey: .title)
+        authorLine = try container.decode(String.self, forKey: .authorLine)
+        moral = try container.decode(String.self, forKey: .moral)
+        pages = try container.decode([StoryPageDTO].self, forKey: .pages)
+
+        // Models sometimes return characterDescriptions as a string or an array of strings.
+        if let str = try? container.decodeIfPresent(String.self, forKey: .characterDescriptions) {
+            characterDescriptions = str
+        } else if let arr = try? container.decodeIfPresent([String].self, forKey: .characterDescriptions) {
+            characterDescriptions = arr.joined(separator: "\n")
+        } else {
+            characterDescriptions = nil
+        }
+    }
+
+    private enum CodingKeys: String, CodingKey {
+        case title, authorLine, moral, characterDescriptions, pages
+    }
+
     func toStoryBook(pageCount: Int, fallbackConcept: String) -> StoryBook {
         let orderedPages = pages
             .sorted { $0.pageNumber < $1.pageNumber }
@@ -210,11 +231,31 @@ enum StoryDecoding {
     }
 
     static func extractFirstJSONObjectString(from text: String) -> String? {
-        guard let firstBrace = text.firstIndex(of: "{"),
-              let lastBrace = text.lastIndex(of: "}") else {
+        let cleaned = stripMarkdownCodeFences(text)
+        guard let firstBrace = cleaned.firstIndex(of: "{"),
+              let lastBrace = cleaned.lastIndex(of: "}") else {
             return nil
         }
-        return String(text[firstBrace...lastBrace])
+        return String(cleaned[firstBrace...lastBrace])
+    }
+
+    /// Strips markdown code block fences (```json ... ``` or ``` ... ```)
+    /// that many cloud models wrap around JSON responses.
+    static func stripMarkdownCodeFences(_ text: String) -> String {
+        var s = text.trimmingCharacters(in: .whitespacesAndNewlines)
+        // Strip opening fence: ```json, ```JSON, or just ```
+        if s.hasPrefix("```") {
+            if let newlineIndex = s.firstIndex(of: "\n") {
+                s = String(s[s.index(after: newlineIndex)...])
+            } else {
+                s = String(s.dropFirst(3))
+            }
+        }
+        // Strip closing fence
+        if s.hasSuffix("```") {
+            s = String(s.dropLast(3))
+        }
+        return s.trimmingCharacters(in: .whitespacesAndNewlines)
     }
 
     // MARK: - Two-Pass Decoding
@@ -406,6 +447,26 @@ struct TextOnlyStoryDTO: Decodable {
     let moral: String
     let characterDescriptions: String?
     let pages: [TextOnlyPageDTO]
+
+    init(from decoder: Decoder) throws {
+        let container = try decoder.container(keyedBy: CodingKeys.self)
+        title = try container.decode(String.self, forKey: .title)
+        authorLine = try container.decode(String.self, forKey: .authorLine)
+        moral = try container.decode(String.self, forKey: .moral)
+        pages = try container.decode([TextOnlyPageDTO].self, forKey: .pages)
+
+        if let str = try? container.decodeIfPresent(String.self, forKey: .characterDescriptions) {
+            characterDescriptions = str
+        } else if let arr = try? container.decodeIfPresent([String].self, forKey: .characterDescriptions) {
+            characterDescriptions = arr.joined(separator: "\n")
+        } else {
+            characterDescriptions = nil
+        }
+    }
+
+    private enum CodingKeys: String, CodingKey {
+        case title, authorLine, moral, characterDescriptions, pages
+    }
 }
 
 /// A single page of story text without an image prompt.

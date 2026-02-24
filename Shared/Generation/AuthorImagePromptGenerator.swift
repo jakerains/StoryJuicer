@@ -46,10 +46,11 @@ enum AuthorImagePromptGenerator {
         return response.content
     }
 
-    /// Build a cover prompt from the story title.
+    /// Build a cover prompt from the story concept (not the title).
+    /// We overlay the title text ourselves — saying "cover" cues models to render title text.
     static func coverPrompt(title: String) -> String {
-        let safeTitle = ContentSafetyPolicy.sanitizeConcept(title)
-        return "\(safeTitle) book cover, warm whimsical colors, friendly characters, storybook illustration"
+        let safeConcept = ContentSafetyPolicy.sanitizeConcept(title)
+        return "Children's storybook illustration about \(safeConcept), warm whimsical colors, friendly characters, no text, no words, no letters, no writing, text-free"
     }
 
     // MARK: - Heuristic Fallback

@@ -63,7 +63,7 @@ struct CloudTextGenerator: StoryTextGenerating {
         Self.logger.info("Starting cloud text generation: provider=\(cloudProvider.rawValue, privacy: .public) model=\(modelID, privacy: .public)")
 
         // ── Pass 1: Generate story text (no image prompts) ──
-        await onProgress("Weaving words and wonder...")
+        await onProgress("Spinning starlight into story pages...")
 
         let pass1System = premiumTier.isActive
             ? StoryPromptTemplates.premiumJSONModeSystemInstructions
@@ -95,7 +95,7 @@ struct CloudTextGenerator: StoryTextGenerating {
                 model: modelID,
                 systemPrompt: pass1System,
                 userPrompt: pass1UserPrompt,
-                maxTokens: GenerationConfig.maximumResponseTokens(for: pageCount) * 2
+                maxTokens: GenerationConfig.cloudTokens(for: pageCount)
             )
         } else {
             pass1Text = try await chatWithOpenAIClient(
@@ -103,7 +103,7 @@ struct CloudTextGenerator: StoryTextGenerating {
                 model: modelID,
                 systemPrompt: pass1System,
                 userPrompt: pass1UserPrompt,
-                maxTokens: GenerationConfig.maximumResponseTokens(for: pageCount) * 2
+                maxTokens: GenerationConfig.cloudTokens(for: pageCount)
             )
         }
 

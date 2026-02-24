@@ -313,7 +313,7 @@ final class IllustrationGenerator {
             currentSettings.imageProvider = .openAI
         }
         if currentSettings.imageProvider.isCloud {
-            let sanitizedPrompt = ContentSafetyPolicy.sanitizeConcept(prompt, maxLength: 1000)
+            let sanitizedPrompt = ContentSafetyPolicy.safeIllustrationPrompt(prompt, maxLength: 1000)
             let attemptStart = ContinuousClock.now
             do {
                 let outcome = try await router.generateImage(

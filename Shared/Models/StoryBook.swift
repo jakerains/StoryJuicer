@@ -15,7 +15,7 @@ struct StoryBook {
     @Guide(description: "A brief visual reference for each main character based on the story concept. One line per character: name - species or breed, colors, clothing, one distinguishing feature. Use the species from the concept — do not substitute a different animal.")
     var characterDescriptions: String
 
-    @Guide(description: "The story pages array - generate exactly the number of pages the user requested")
+    @Guide(description: "The story pages array — you MUST generate the exact number of pages requested. Do not stop early.")
     var pages: [StoryPage]
 }
 
@@ -50,7 +50,7 @@ struct TextOnlyStoryBook: Sendable {
     @Guide(description: "A brief visual reference for each main character based on the story concept. One line per character: name - species or breed, colors, clothing, one distinguishing feature. Use the species from the concept — do not substitute a different animal.")
     var characterDescriptions: String
 
-    @Guide(description: "Story pages with text only — no image prompts needed")
+    @Guide(description: "Story pages with text only — no image prompts needed. You MUST generate the exact number of pages requested. Do not stop early.")
     var pages: [TextOnlyStoryPage]
 }
 
